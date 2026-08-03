@@ -5,6 +5,11 @@ complete rewrite of the underlying library. Existing cicerone code keeps
 working; deprecated arguments are mapped to their driver.js 1.x
 equivalent (or ignored with a warning where no equivalent exists).
 
+Even without changing any code, tours look and feel better: the overlay
+is now an SVG cutout rather than a stacked CSS stage, so highlighting is
+smoother, resize/scroll repositioning is reliable, and popovers place
+themselves more intelligently.
+
 ## Breaking-ish changes
 
 - `close_btn_text` is deprecated and ignored: the close button is now an
@@ -16,6 +21,11 @@ equivalent (or ignored with a warning where no equivalent exists).
 - `opacity`, `padding` and `overlay_click_next` are deprecated in favor
   of `overlay_opacity`, `stage_padding` and `overlay_click_behavior`;
   old arguments are still honored.
+- Custom CSS written against driver.js 0.9 selectors (e.g.
+  `#driver-page-overlay`, `#driver-highlighted-element-stage`) no longer
+  applies: driver.js 1.x uses new class names such as `.driver-popover`
+  and `.driver-overlay`, and popovers are best themed via
+  `popover_class`.
 
 ## New features
 
@@ -45,7 +55,14 @@ equivalent (or ignored with a warning where no equivalent exists).
   `{id}_cicerone_previous`.
 - New `Hints` class wrapping the driver.js hints module: pulsing beacons
   attached to elements, with `show()`, `hide()`, `open()`, `close()`,
-  `dismiss()`, `restore()` and `refresh()` methods and Shiny events.
+  `dismiss()`, `restore()` and `refresh()` methods and Shiny events
+  (`{id}_cicerone_hint_opened`, `{id}_cicerone_hint_dismissed`,
+  `{id}_cicerone_hint_button`).
+- The driver and hints instances are exposed to host JavaScript as
+  `window.cicerone.drivers[id]` and `window.cicerone.hints[id]`, so
+  tours can also be driven from custom JavaScript.
+- Added a demo application, see
+  `shiny::runApp(system.file("examples/demo", package = "cicerone"))`.
 
 # cicerone 1.0.5.9000
 
