@@ -11,6 +11,14 @@ let drivers = {};
 // hints instances, keyed by cicerone id
 let hinters = {};
 
+// Host applications sometimes have to drive a tour from their own JavaScript,
+// when the signals it must react to are only observable in the DOM and never
+// reach Shiny. cicerone 1.0.4 shipped as a classic script, so its top-level
+// `var driver = []` leaked onto window and host code relied on that; the packer
+// build scopes it to this module. Publish it deliberately instead, so the
+// integration point is a stated API rather than an accident of bundling.
+window.cicerone = { drivers: drivers, hints: hinters };
+
 // Hook option names that may arrive from R as strings of JavaScript
 const CONFIG_HOOKS = [
   "onPopoverRender",
