@@ -1,0 +1,47 @@
+# Guard against srcjs/ and inst/packer/cicerone.js drifting apart:
+# rebuild the bundle from source and fail if it differs from the
+# committed artifact.
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'srcjs/**'
+      - 'inst/packer/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'webpack.*.js'
+      - '.github/workflows/bundle-check.yaml'
+  pull_request:
+    paths:
+      - 'srcjs/**'
+      - 'inst/packer/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'webpack.*.js'
+      - '.github/workflows/bundle-check.yaml'
+
+name: bundle-check.yaml
+
+permissions: read-all
+
+jobs:
+  bundle-check:
+    runs-on: ubuntu-latest
+    env:
+      # webpack 5.44 hashes with md4, which OpenSSL 3 (Node >= 17) removed
+      NODE_OPTIONS: --openssl-legacy-provider
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run production
+
+      - name: Verify committed bundle matches srcjs
+        run: git diff --exit-code inst/packer/cicerone.js

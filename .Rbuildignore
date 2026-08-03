@@ -1,11 +1,6 @@
 ^LICENSE\.md$
-^test\.R$
 ^docs$
-^\.travis\.yml$
-^appveyor\.yml$
-^cran-comments\.md$
 .vscode
-^CRAN-RELEASE$
 ^srcjs$
 ^node_modules$
 ^package\.json$
