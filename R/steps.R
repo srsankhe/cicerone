@@ -55,6 +55,8 @@ Cicerone <- R6::R6Class(
 #' (default) closes the tour, `"nextStep"` moves to the next step, or a
 #' string of JavaScript defining a custom handler.
 #' @param smooth_scroll Whether to smooth scroll to the highlighted element.
+#' @param allow_scroll Whether the page can be scrolled while a tour is
+#' active, set to `FALSE` to lock body scroll.
 #' @param stage_padding Distance between the highlighted element and the
 #' edge of the cutout, in pixels.
 #' @param stage_radius Corner radius of the cutout around the highlighted
@@ -99,6 +101,7 @@ Cicerone <- R6::R6Class(
       id = NULL, mathjax = FALSE,
       overlay_color = NULL, overlay_opacity = .75,
       overlay_click_behavior = NULL, smooth_scroll = FALSE,
+      allow_scroll = TRUE,
       stage_padding = 10, stage_radius = NULL,
       disable_active_interaction = FALSE, advance_on_click = NULL,
       skip_missing_element = NULL, wait_for_element = NULL,
@@ -136,6 +139,7 @@ Cicerone <- R6::R6Class(
         overlay_opacity = overlay_opacity,
         smooth_scroll = smooth_scroll,
         allow_close = allow_close,
+        allow_scroll = allow_scroll,
         overlay_click_behavior = overlay_click_behavior,
         stage_padding = stage_padding,
         stage_radius = stage_radius,

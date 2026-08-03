@@ -29,7 +29,8 @@ themselves more intelligently.
 
 ## New features
 
-- New tour options: `overlay_color`, `smooth_scroll`, `stage_radius`,
+- New tour options: `overlay_color`, `smooth_scroll`, `allow_scroll`,
+  `stage_radius`,
   `disable_active_interaction`, `advance_on_click`,
   `skip_missing_element`, `wait_for_element`, `popover_class`,
   `popover_offset`, `disable_buttons`, `show_progress`, `progress_text`,
