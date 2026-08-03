@@ -15,6 +15,7 @@
 #' 
 #' @import assertthat
 #' @importFrom htmltools htmlDependency
+#' @importFrom R6 R6Class
 #' 
 #' @export
 use_cicerone <- function() {

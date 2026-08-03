@@ -1,5 +1,5 @@
-/* Make highlighted element transparent so that tab title can be read when navbar is fixed */
-#driver-highlighted-element-stage, #driver-page-overlay {
-  background: transparent !important;
-  outline: 5000px solid rgba(0, 0, 0, .75)
-}
+/*
+  cicerone custom styles.
+  driver.js 1.x uses an SVG overlay (no stage element), so the
+  pre-2.0.0 overlay hack is no longer required.
+*/

@@ -1,7 +1,7 @@
 Package: cicerone
 Title: Provide Tours of 'Shiny' Applications
-Version: 1.0.5.9000
-Date: 2021-01-10
+Version: 2.0.0
+Date: 2026-08-02
 Authors@R: 
   c(
     person(given = "John",
@@ -16,9 +16,14 @@ Authors@R:
     person(given = "Stephen",
            family = "Holsenbeck",
            role = "ctb",
-           email = "sholsen@alumni.emory.edu")
+           email = "sholsen@alumni.emory.edu"),
+    person(given = "Sumedh",
+           family = "Sankhe",
+           role = "ctb",
+           email = "ssankhe@alamarbio.com")
   )
-Description: Provide step by step guided tours of 'Shiny' applications.
+Description: Provide step by step guided tours and hints of 'Shiny'
+    applications using 'driver.js'.
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
@@ -27,7 +32,11 @@ Imports:
     shiny,
     htmltools,
     assertthat
-RoxygenNote: 7.2.3
 Roxygen: list(markdown = TRUE)
+Suggests:
+    covr,
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
 URL: https://cicerone.john-coene.com/
 BugReports: https://github.com/JohnCoene/cicerone/issues
+Config/roxygen2/version: 8.0.0

@@ -15,3 +15,6 @@
 ^webpack\.common\.js$
 ^.*\.Rproj$
 ^\.Rproj\.user$
+^dev$
+^codecov\.yml$
+^\.github$

@@ -1,6 +1,6 @@
 {
   "name": "cicerone",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "<img src=\"./man/figures/logo.png\" align = \"right\" height=250/>",
   "main": "index.js",
   "directories": {
@@ -33,6 +33,6 @@
     "webpack-merge": "^5.8.0"
   },
   "dependencies": {
-    "driver.js": "^0.9.8"
+    "driver.js": "^1.8.0"
   }
 }
