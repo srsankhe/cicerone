@@ -4,7 +4,7 @@
 
 <!-- badges: start -->
 [![R-CMD-check](https://github.com/srsankhe/cicerone/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/srsankhe/cicerone/actions/workflows/R-CMD-check.yaml)
-[![Codecov test coverage](https://codecov.io/gh/srsankhe/cicerone/graph/badge.svg)](https://app.codecov.io/gh/srsankhe/cicerone)
+[![Codecov test coverage](https://codecov.io/gh/srsankhe/cicerone/branch/main/graph/badge.svg)](https://app.codecov.io/gh/srsankhe/cicerone/tree/main)
 [![Version](https://img.shields.io/github/r-package/v/srsankhe/cicerone?label=version)](https://github.com/srsankhe/cicerone/blob/main/DESCRIPTION)
 [![CRAN status](https://www.r-pkg.org/badges/version/cicerone)](https://CRAN.R-project.org/package=cicerone)
 [![Lifecycle: stable](https://img.shields.io/badge/lifecycle-stable-brightgreen.svg)](https://lifecycle.r-lib.org/articles/stages.html#stable)
