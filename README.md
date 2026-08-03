@@ -141,7 +141,7 @@ Install this fork from GitHub with:
 
 ``` r
 # install.packages("remotes")
-remotes::install_github("<your-github-username>/cicerone")
+remotes::install_github("srsankhe/cicerone")
 ```
 
 The archived 1.x version remains on [CRAN](https://CRAN.R-project.org/package=cicerone).
