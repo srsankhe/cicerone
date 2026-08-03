@@ -1,3 +1,52 @@
+# cicerone 2.0.0
+
+Major upgrade: the bundled driver.js was updated from 0.9.8 to 1.8.0, a
+complete rewrite of the underlying library. Existing cicerone code keeps
+working; deprecated arguments are mapped to their driver.js 1.x
+equivalent (or ignored with a warning where no equivalent exists).
+
+## Breaking-ish changes
+
+- `close_btn_text` is deprecated and ignored: the close button is now an
+  x icon without text.
+- `stage_background` is deprecated and ignored: driver.js 1.x cuts the
+  highlighted element out of an SVG overlay, there is no stage element.
+- `position` is deprecated in favor of `side` and `align`; old values
+  are mapped automatically.
+- `opacity`, `padding` and `overlay_click_next` are deprecated in favor
+  of `overlay_opacity`, `stage_padding` and `overlay_click_behavior`;
+  old arguments are still honored.
+
+## New features
+
+- New tour options: `overlay_color`, `smooth_scroll`, `stage_radius`,
+  `disable_active_interaction`, `advance_on_click`,
+  `skip_missing_element`, `wait_for_element`, `popover_class`,
+  `popover_offset`, `disable_buttons`, `show_progress`, `progress_text`,
+  and `duration`.
+- `show_btns` now also accepts a character vector among `"next"`,
+  `"previous"`, `"close"`.
+- New step options: `side`, `align`, `done_btn_text`, `show_progress`,
+  `progress_text`, `disable_buttons`, `disable_active_interaction`,
+  `advance_on_click`, `skip_missing_element`, `wait_for_element`, and
+  `data`.
+- Element-less steps: pass only `title`/`description` to `step()` for a
+  modal-like step.
+- New tour-level hooks: `on_popover_render`, `on_highlight_started`,
+  `on_highlighted`, `on_deselected`, `on_destroy_started`,
+  `on_destroyed`, `on_next_click`, `on_prev_click`, `on_close_click`,
+  `on_done_click`; new step-level hooks `on_deselected`, `on_prev`,
+  `on_close`, `on_done`, `on_popover_render`.
+- New methods: `move_to()`, `refresh()`, `destroy()` (alias of
+  `reset()`), and `get_state()`.
+- New Shiny inputs: `{id}_cicerone_state` (updated on every highlight),
+  `{id}_cicerone_reset`, and richer payloads (`index`, `is_first`,
+  `is_last`, `has_previous`, `total_steps`) on `{id}_cicerone_next` /
+  `{id}_cicerone_previous`.
+- New `Hints` class wrapping the driver.js hints module: pulsing beacons
+  attached to elements, with `show()`, `hide()`, `open()`, `close()`,
+  `dismiss()`, `restore()` and `refresh()` methods and Shiny events.
+
 # cicerone 1.0.5.9000
 
 - Added `run_once` argument.

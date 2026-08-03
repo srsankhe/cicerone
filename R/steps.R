@@ -1,76 +1,172 @@
 #' Define Steps
-#' 
-#' Define cicerone steps.
-#' 
-#' @section Position:
-#' * left
-#' * right
-#' * left-center
-#' * left-bottom
-#' * top
-#' * top-center
-#' * top-right
-#' * right
-#' * right-center
-#' * right-bottom
-#' * bottom
-#' * bottom-center
-#' * mid-center
-#' 
+#'
+#' Define cicerone steps, powered by driver.js 1.x.
+#'
+#' @section Side and alignment:
+#' driver.js 1.x positions popovers with `side` (`left`, `right`,
+#' `top`, `bottom`, `over`) and `align` (`start`, `center`, `end`).
+#' The pre-2.0.0 `position` argument is still accepted and mapped to
+#' the equivalent `side`/`align` pair:
+#' * `left`, `right`, `top`, `bottom`
+#' * `left-center`, `left-bottom`
+#' * `top-center`, `top-right`
+#' * `right-center`, `right-bottom`
+#' * `bottom-center`
+#' * `mid-center`
+#'
+#' @section JavaScript callbacks:
+#' All `on_*` arguments take a string of JavaScript defining a function.
+#' Tour hooks receive `(element, step, opts)` where `opts` contains
+#' `config`, `state` and `driver`. For example:
+#' `"function(element, step, opts) { console.log(step); }"`.
+#'
 #' @export
 Cicerone <- R6::R6Class(
   "Cicerone",
 #' @details
 #' Create a new `Cicerone` object.
-#' 
+#'
 #' @param animate Whether to animate or not.
-#' @param opacity Background opacity (0 means only popovers 
-#' and without overlay).
-#' @param padding Distance of element from around the edges.
-#' @param allow_close Whether the click on overlay should close 
-#' or not.
-#' @param overlay_click_next Whether the click on overlay should 
-#' move next.
+#' @param opacity Deprecated, use `overlay_opacity`. Background opacity
+#' (0 means only popovers and without overlay).
+#' @param padding Deprecated, use `stage_padding`. Distance of element
+#' from around the edges.
+#' @param allow_close Whether clicking on the overlay should close the tour.
+#' @param overlay_click_next Deprecated, use `overlay_click_behavior`.
+#' Whether the click on overlay should move next.
 #' @param done_btn_text Text on the final button.
-#' @param close_btn_text Text on the close button for this step.
-#' @param stage_background Background color for the staged behind 
-#' highlighted element.
-#' @param next_btn_text Next button text for this step.
-#' @param prev_btn_text Previous button text for this step.
-#' @param show_btns Do not show control buttons in footer.
-#' @param keyboard_control Allow controlling through keyboard (escape 
+#' @param close_btn_text Deprecated: driver.js 1.x renders the close
+#' button as an x icon, it no longer has text.
+#' @param stage_background Deprecated: driver.js 1.x cuts the highlighted
+#' element out of an SVG overlay, there is no stage element to color.
+#' @param next_btn_text Next button text.
+#' @param prev_btn_text Previous button text.
+#' @param show_btns Whether to show control buttons in the footer. Either
+#' `TRUE`/`FALSE`, or a character vector of buttons to show among
+#' `"next"`, `"previous"`, and `"close"`.
+#' @param keyboard_control Allow controlling through keyboard (escape
 #' to close, arrow keys to move).
 #' @param id A unique identifier, useful if you are using more than one
 #' cicerone.
 #' @param mathjax Whether to use MathJax in the steps.
-#' 
+#' @param overlay_color Color of the page overlay, e.g.: `"#000"`.
+#' @param overlay_opacity Opacity of the page overlay, between 0 and 1.
+#' @param overlay_click_behavior What clicking the overlay does: `"close"`
+#' (default) closes the tour, `"nextStep"` moves to the next step, or a
+#' string of JavaScript defining a custom handler.
+#' @param smooth_scroll Whether to smooth scroll to the highlighted element.
+#' @param stage_padding Distance between the highlighted element and the
+#' edge of the cutout, in pixels.
+#' @param stage_radius Corner radius of the cutout around the highlighted
+#' element, in pixels.
+#' @param disable_active_interaction Whether to disable interaction with
+#' the highlighted element.
+#' @param advance_on_click Whether clicking the highlighted element
+#' advances the tour.
+#' @param skip_missing_element Whether to skip steps whose element is
+#' not found on the page.
+#' @param wait_for_element Milliseconds to wait for a step's element to
+#' appear before giving up.
+#' @param popover_class Class added to all popovers, for custom styling.
+#' @param popover_offset Distance between the popover and the highlighted
+#' element, in pixels.
+#' @param disable_buttons Character vector of buttons to render disabled,
+#' among `"next"`, `"previous"`, and `"close"`.
+#' @param show_progress Whether to show tour progress text in the popover
+#' (e.g.: `"2 of 5"`).
+#' @param progress_text Template for the progress text, e.g.:
+#' `"{{current}} of {{total}}"`.
+#' @param duration Animation duration in milliseconds.
+#' @param on_popover_render JavaScript function called when the popover
+#' is rendered, receives `(popover, opts)`.
+#' @param on_highlight_started,on_highlighted,on_deselected JavaScript
+#' functions called around highlighting of every step.
+#' @param on_destroy_started,on_destroyed JavaScript functions called
+#' around tour destruction.
+#' @param on_next_click,on_prev_click,on_close_click,on_done_click
+#' JavaScript functions called on button clicks. When `on_next_click`
+#' or `on_prev_click` is set, cicerone still fires the corresponding
+#' Shiny event and advances the tour, unless the callback returns
+#' `false`.
+#'
 #' @return A Cicerone object.
   public = list(
-    initialize = function(animate = TRUE, opacity = .75, padding = 10,
-      allow_close = TRUE, overlay_click_next  = FALSE, done_btn_text = "Done",
-      close_btn_text = "Close", stage_background = "#ffffff", next_btn_text = "Next",
-      prev_btn_text = "Previous", show_btns = TRUE, keyboard_control = TRUE, id = NULL,
-      mathjax = FALSE) {
+    initialize = function(
+      animate = TRUE, opacity = NULL, padding = NULL,
+      allow_close = TRUE, overlay_click_next = NULL, done_btn_text = "Done",
+      close_btn_text = NULL, stage_background = NULL, next_btn_text = "Next",
+      prev_btn_text = "Previous", show_btns = TRUE, keyboard_control = TRUE,
+      id = NULL, mathjax = FALSE,
+      overlay_color = NULL, overlay_opacity = .75,
+      overlay_click_behavior = NULL, smooth_scroll = FALSE,
+      stage_padding = 10, stage_radius = NULL,
+      disable_active_interaction = FALSE, advance_on_click = NULL,
+      skip_missing_element = NULL, wait_for_element = NULL,
+      popover_class = NULL, popover_offset = NULL,
+      disable_buttons = NULL, show_progress = FALSE, progress_text = NULL,
+      duration = NULL,
+      on_popover_render = NULL,
+      on_highlight_started = NULL, on_highlighted = NULL,
+      on_deselected = NULL,
+      on_destroy_started = NULL, on_destroyed = NULL,
+      on_next_click = NULL, on_prev_click = NULL,
+      on_close_click = NULL, on_done_click = NULL
+    ) {
 
       if(is.null(id))
         id <- generate_id()
 
-      private$globals <- list(
+      # deprecated arguments removed from driver.js 1.x
+      deprecated_arg(close_btn_text, "close_btn_text")
+      deprecated_arg(stage_background, "stage_background")
+
+      # deprecated arguments mapped to their driver.js 1.x equivalent
+      overlay_opacity <- opacity %||% overlay_opacity
+      stage_padding <- padding %||% stage_padding
+
+      if(is.null(overlay_click_behavior)) {
+        overlay_click_behavior <- "close"
+        if(isTRUE(overlay_click_next))
+          overlay_click_behavior <- "nextStep"
+      }
+
+      private$globals <- build_config(
         animate = animate,
-        opacity = opacity,
-        padding = padding,
-        allowClose = allow_close,
-        overlayClickNext = overlay_click_next,
-        doneBtnText = done_btn_text,
-        closeBtnText = close_btn_text,
-        stageBackground = stage_background,
-        nextBtnText = next_btn_text,
-        prevBtnText = prev_btn_text,
-        showButtons = show_btns,
-        keyboardControl = keyboard_control,
-        id = id
+        overlay_color = overlay_color,
+        overlay_opacity = overlay_opacity,
+        smooth_scroll = smooth_scroll,
+        allow_close = allow_close,
+        overlay_click_behavior = overlay_click_behavior,
+        stage_padding = stage_padding,
+        stage_radius = stage_radius,
+        allow_keyboard_control = keyboard_control,
+        disable_active_interaction = disable_active_interaction,
+        advance_on_click = advance_on_click,
+        skip_missing_element = skip_missing_element,
+        wait_for_element = wait_for_element,
+        popover_class = popover_class,
+        popover_offset = popover_offset,
+        show_buttons = show_btns,
+        disable_buttons = disable_buttons,
+        show_progress = show_progress,
+        progress_text = progress_text,
+        next_btn_text = next_btn_text,
+        prev_btn_text = prev_btn_text,
+        done_btn_text = done_btn_text,
+        duration = duration,
+        on_popover_render = on_popover_render,
+        on_highlight_started = on_highlight_started,
+        on_highlighted = on_highlighted,
+        on_deselected = on_deselected,
+        on_destroy_started = on_destroy_started,
+        on_destroyed = on_destroyed,
+        on_next_click = on_next_click,
+        on_prev_click = on_prev_click,
+        on_close_click = on_close_click,
+        on_done_click = on_done_click
       )
 
+      private$globals$id <- id
       private$id <- id
       private$mathjax <- mathjax
 
@@ -78,67 +174,137 @@ Cicerone <- R6::R6Class(
     },
 #' @details
 #' Add a step.
-#' 
-#' @param el Id of element to be highlighted.
+#'
+#' @param el Selector of the element to highlight, e.g.: an id or a class.
+#' Use `NULL` together with `title`/`description` for a modal-like step
+#' with no highlighted element.
 #' @param title Title on the popover.
 #' @param description Body of the popover.
-#' @param position Where to position the popover. 
-#' See positions section.
-#' @param class className to wrap this specific step 
-#' popover in addition to the general className in Driver 
-#' options.
-#' @param show_btns Whether to show control buttons.
-#' @param close_btn_text Text on the close button.
-#' @param next_btn_text Next button text.
-#' @param prev_btn_text Previous button text.
+#' @param position Deprecated, use `side` and `align`. See the side and
+#' alignment section.
+#' @param side Side the popover is positioned on: `"left"`, `"right"`,
+#' `"top"`, `"bottom"` or `"over"`.
+#' @param align Alignment of the popover along the chosen side:
+#' `"start"`, `"center"` or `"end"`.
+#' @param class className for this specific step's popover, in
+#' addition to the general `popover_class` of the tour.
+#' @param show_btns Buttons to show for this step, `TRUE`/`FALSE` or a
+#' character vector among `"next"`, `"previous"`, and `"close"`.
+#' @param disable_buttons Buttons to render disabled for this step.
+#' @param close_btn_text Deprecated: driver.js 1.x renders the close
+#' button as an x icon, it no longer has text.
+#' @param next_btn_text Next button text for this step.
+#' @param prev_btn_text Previous button text for this step.
+#' @param done_btn_text Done button text, on the last step.
+#' @param show_progress Whether to show progress text on this step.
+#' @param progress_text Progress text template for this step, e.g.:
+#' `"{{current}} of {{total}}"`.
 #' @param tab_id The id of the tabs to activate in order to highlight `tab_id`.
-#' @param is_id **Deprecated** Whether the selector passed to `el` is an HTML id, set to `FALSE` to use
-#' other selectors, e.g.: `.class`. 
+#' @param is_id **Deprecated** Whether the selector passed to `el` is an
+#' HTML id, other selectors are detected automatically.
 #' @param tab The name of the tab to set.
-#' @param on_highlighted A JavaScript function to run when the step is highlighted,
-#' generally a callback function. This is effectively a string that is evaluated JavaScript-side.
-#' @param on_highlight_started A JavaScript function to run when the step is just aobut to be 
-#' highlighted, generally a callback function. This is effectively a string that is evaluated JavaScript-side.
-#' @param on_next A JavaScript function to run when the next button is clicked (or its event triggered), 
-#' generally a callback function. This is effectively a string that is evaluated JavaScript-side.
-    step = function(el, title = NULL, description = NULL, position = NULL, 
+#' @param on_highlighted A JavaScript function to run when the step is
+#' highlighted, generally a callback function. This is effectively a
+#' string that is evaluated JavaScript-side.
+#' @param on_highlight_started A JavaScript function to run when the step
+#' is just about to be highlighted, generally a callback function. This is
+#' effectively a string that is evaluated JavaScript-side.
+#' @param on_deselected A JavaScript function to run when the step is
+#' deselected (the tour moved away from it).
+#' @param on_next A JavaScript function to run when the next button is
+#' clicked. Unless the function returns `false` the tour then advances.
+#' This is effectively a string that is evaluated JavaScript-side.
+#' @param on_prev A JavaScript function to run when the previous button
+#' is clicked. Unless the function returns `false` the tour then moves
+#' back.
+#' @param on_close A JavaScript function to run when the close button is
+#' clicked.
+#' @param on_done A JavaScript function to run when the done button is
+#' clicked, on the last step.
+#' @param on_popover_render A JavaScript function to run when this step's
+#' popover is rendered.
+#' @param disable_active_interaction Whether to disable interaction with
+#' the highlighted element for this step.
+#' @param advance_on_click Whether clicking the highlighted element
+#' advances the tour, for this step.
+#' @param skip_missing_element Whether to skip this step if its element
+#' is not found.
+#' @param wait_for_element Milliseconds to wait for this step's element
+#' to appear before giving up.
+#' @param data A named list of arbitrary data attached to the step,
+#' available to JavaScript callbacks as `step.data`.
+    step = function(el = NULL, title = NULL, description = NULL, position = NULL,
       class = NULL, show_btns = NULL, close_btn_text = NULL,
-      next_btn_text = NULL, prev_btn_text = NULL, tab = NULL, tab_id = NULL, is_id = NULL,
-      on_highlighted = NULL, on_highlight_started = NULL, on_next = NULL) {
+      next_btn_text = NULL, prev_btn_text = NULL, tab = NULL, tab_id = NULL,
+      is_id = NULL,
+      on_highlighted = NULL, on_highlight_started = NULL, on_next = NULL,
+      side = NULL, align = NULL,
+      disable_buttons = NULL, show_progress = NULL, progress_text = NULL,
+      done_btn_text = NULL,
+      on_deselected = NULL, on_prev = NULL, on_close = NULL, on_done = NULL,
+      on_popover_render = NULL,
+      disable_active_interaction = NULL, advance_on_click = NULL,
+      skip_missing_element = NULL, wait_for_element = NULL, data = NULL) {
 
       if(!is.null(is_id))
-        .Deprecated(...)
-      assertthat::assert_that(!missing(el), msg = "Must pass `el`")
+        .Deprecated(
+          msg = "`is_id` is deprecated, selectors are detected automatically"
+        )
+
+      deprecated_arg(close_btn_text, "close_btn_text")
+
+      assertthat::assert_that(
+        !is.null(el) || !is.null(title) || !is.null(description),
+        msg = "Must pass `el`, or `title`/`description` for an element-less step"
+      )
 
       assertthat::assert_that(tabs_ok(tab, tab_id))
 
-      
-      el <- prep_element(el)
-
-      popover <- list()
-
-      if(!is.null(class)) popover$className <- as.character(class)
-      if(!is.null(title)) popover$title <- as.character(title)
-      if(!is.null(description)) popover$description <- as.character(description)
-      if(!is.null(position)) popover$position <- position
-      if(!is.null(show_btns)) popover$showButtons <- show_btns
-      if(!is.null(close_btn_text)) popover$closeBtnText <- close_btn_text
-      if(!is.null(next_btn_text)) popover$nextBtnText <- next_btn_text
-      if(!is.null(prev_btn_text)) popover$prevBtnText <- prev_btn_text
-
-      step = list(element = el, tab_id = tab_id, tab = tab)
+      if(!is.null(el))
+        el <- prep_element(el)
 
       if(private$mathjax) {
-        step$onHighlighted <- paste0("function(element){setTimeout(function(){
+        on_highlighted <- paste0(
+          "function(element, step, opts){setTimeout(function(){
           MathJax.Hub.Queue(['Typeset', MathJax.Hub]);
-        }, 300);", on_highlighted, "}")
-        
-      } else {
-        if(!is.null(on_highlighted)) step$onHighlighted <- on_highlighted
+        }, 300);", on_highlighted, "}"
+        )
       }
-      
-      if(!is.null(on_highlight_started)) step$onHighlightStarted <- on_highlight_started
-      if(!is.null(on_next)) step$onNext <- on_next
+
+      popover <- build_popover(
+        title = title,
+        description = description,
+        side = side,
+        align = align,
+        position = position,
+        popover_class = class,
+        show_buttons = show_btns,
+        disable_buttons = disable_buttons,
+        show_progress = show_progress,
+        progress_text = progress_text,
+        next_btn_text = next_btn_text,
+        prev_btn_text = prev_btn_text,
+        done_btn_text = done_btn_text,
+        on_popover_render = on_popover_render,
+        on_next_click = on_next,
+        on_prev_click = on_prev,
+        on_close_click = on_close,
+        on_done_click = on_done
+      )
+
+      step <- drop_nulls(list(
+        element = el,
+        tab_id = tab_id,
+        tab = tab,
+        onHighlighted = on_highlighted,
+        onHighlightStarted = on_highlight_started,
+        onDeselected = on_deselected,
+        disableActiveInteraction = disable_active_interaction,
+        advanceOnClick = advance_on_click,
+        skipMissingElement = skip_missing_element,
+        waitForElement = wait_for_element,
+        data = data
+      ))
 
       if(length(popover)) step$popover <- popover
 
@@ -147,7 +313,7 @@ Cicerone <- R6::R6Class(
     },
 #' @details
 #' Initialise Cicerone.
-#' 
+#'
 #' @param session A valid Shiny session if `NULL` the function
 #' attempts to get the session with [shiny::getDefaultReactiveDomain()].
 #' @param run_once Whether to only run the guide once. If `TRUE`
@@ -155,7 +321,7 @@ Cicerone <- R6::R6Class(
     init = function(session = NULL, run_once = FALSE){
       if(is.null(session))
         session <- shiny::getDefaultReactiveDomain()
-      
+
       opts <- list(
         globals = private$globals,
         steps = private$steps,
@@ -167,8 +333,8 @@ Cicerone <- R6::R6Class(
       invisible(self)
     },
 #' @details
-#' Reset Cicerone.
-#' 
+#' Reset (destroy) Cicerone: exits the tour and removes the overlay.
+#'
 #' @param session A valid Shiny session if `NULL` the function
 #' attempts to get the session with [shiny::getDefaultReactiveDomain()].
     reset = function(session = NULL){
@@ -178,8 +344,16 @@ Cicerone <- R6::R6Class(
       invisible(self)
     },
 #' @details
+#' Alias for `reset`, matching driver.js 1.x terminology.
+#'
+#' @param session A valid Shiny session if `NULL` the function
+#' attempts to get the session with [shiny::getDefaultReactiveDomain()].
+    destroy = function(session = NULL){
+      self$reset(session)
+    },
+#' @details
 #' Start Cicerone.
-#' 
+#'
 #' @param step The step index at which to start.
 #' @param session A valid Shiny session if `NULL` the function
 #' attempts to get the session with [shiny::getDefaultReactiveDomain()].
@@ -199,7 +373,7 @@ Cicerone <- R6::R6Class(
     },
 #' @details
 #' Move Cicerone one step.
-#' 
+#'
 #' @param session A valid Shiny session if `NULL` the function
 #' attempts to get the session with [shiny::getDefaultReactiveDomain()].
     move_forward = function(session = NULL){
@@ -210,7 +384,7 @@ Cicerone <- R6::R6Class(
     },
 #' @details
 #' Move Cicerone one step backward.
-#' 
+#'
 #' @param session A valid Shiny session if `NULL` the function
 #' attempts to get the session with [shiny::getDefaultReactiveDomain()].
     move_backward = function(session = NULL){
@@ -220,85 +394,113 @@ Cicerone <- R6::R6Class(
       invisible(self)
     },
 #' @details
-#' Highlight a specific step.
-#' 
-#' @param el Id of element to highlight
+#' Move Cicerone to a specific step.
+#'
+#' @param step The step index to move to.
+#' @param session A valid Shiny session if `NULL` the function
+#' attempts to get the session with [shiny::getDefaultReactiveDomain()].
+    move_to = function(step, session = NULL){
+      assertthat::assert_that(!missing(step), msg = "Must pass `step`.")
+      if(is.null(session))
+        session <- shiny::getDefaultReactiveDomain()
+      session$sendCustomMessage(
+        "cicerone-move-to",
+        list(step = step - 1, id = private$id)
+      )
+      invisible(self)
+    },
+#' @details
+#' Refresh the overlay and popover positions, e.g.: after
+#' dynamically resizing an element.
+#'
+#' @param session A valid Shiny session if `NULL` the function
+#' attempts to get the session with [shiny::getDefaultReactiveDomain()].
+    refresh = function(session = NULL){
+      if(is.null(session))
+        session <- shiny::getDefaultReactiveDomain()
+      session$sendCustomMessage("cicerone-refresh", list(id = private$id))
+      invisible(self)
+    },
+#' @details
+#' Highlight a specific element.
+#'
+#' @param el Selector of the element to highlight.
 #' @param session A valid Shiny session if `NULL` the function
 #' attempts to get the session with [shiny::getDefaultReactiveDomain()].
     highlight = function(el, session = NULL){
       assertthat::assert_that(!missing(el), msg = "Must pass `el`.")
       if(is.null(session))
         session <- shiny::getDefaultReactiveDomain()
-      
+
       el <- prep_element(el)
-        
+
       session$sendCustomMessage("cicerone-highlight", list(el = el, id = private$id))
       invisible(self)
     },
 #' @details
 #' Retrieve the id of the currently highlighted element.
-#' 
+#'
 #' @param session A valid Shiny session if `NULL` the function
 #' attempts to get the session with [shiny::getDefaultReactiveDomain()].
     get_highlighted_el = function(session = NULL){
-      .Deprecated("get_next", package = "cicerone", "Use the `get_next` or `get_previous`")
-      if(is.null(session))
-        session <- shiny::getDefaultReactiveDomain()
-      session$sendCustomMessage("cicerone-get-highlighted", list(el = el, id = private$id))
-      grab <- paste0(private$id, "_highlighted_element")
-      id <- session$input[[grab]]
-      if(is.null(id))
-        invisible(NULL)
-
-      gsub("#", "", id)
+      .Deprecated("get_state", package = "cicerone")
+      state <- self$get_state(session)
+      if(is.null(state))
+        return(invisible(NULL))
+      state$highlighted
     },
 #' @details
 #' Retrieve the id of the previously highlighted element.
-#' 
+#'
 #' @param session A valid Shiny session if `NULL` the function
 #' attempts to get the session with [shiny::getDefaultReactiveDomain()].
     get_previous_el = function(session = NULL){
-      .Deprecated("get_next", package = "cicerone", "Use the `get_next` or `get_previous`")
-      if(is.null(session))
-        session <- shiny::getDefaultReactiveDomain()
-      session$sendCustomMessage("cicerone-get-previous", list(el = el, id = private$id))
-      grab <- paste0(private$id, "_previous_element")
-      id <- session$input[[grab]]
-      if(is.null(id))
-        invisible(NULL)
-
-      gsub("#", "", id)
+      .Deprecated("get_state", package = "cicerone")
+      state <- self$get_state(session)
+      if(is.null(state))
+        return(invisible(NULL))
+      state$before_previous
     },
 #' @details
 #' Retrieve whether there is a next step.
-#' 
+#'
 #' @param session A valid Shiny session if `NULL` the function
 #' attempts to get the session with [shiny::getDefaultReactiveDomain()].
     has_next_step = function(session = NULL){
-      .Deprecated("get_next", package = "cicerone", "Use the `get_next` or `get_previous`")
+      .Deprecated("get_state", package = "cicerone")
+      state <- self$get_state(session)
+      if(is.null(state))
+        return(invisible(NULL))
+      state$has_next
+    },
+#' @details Retrieve the state of the tour: a list with `highlighted`
+#' (the highlighted element's id), `before_previous`, `has_next`,
+#' `has_previous`, `index` (0-based active step index), `is_first`,
+#' `is_last`, and `total_steps`. Updated every time a step is
+#' highlighted.
+#'
+#' @param session A valid Shiny session if `NULL` the function
+#' attempts to get the session with [shiny::getDefaultReactiveDomain()].
+    get_state = function(session = NULL){
       if(is.null(session))
         session <- shiny::getDefaultReactiveDomain()
-      session$sendCustomMessage("cicerone-has-next", list(el = el, id = private$id))
-      grab <- paste0(private$id, "_has_next_step_man")
-      id <- session$input[[grab]]
-      if(is.null(id))
-        invisible(NULL)
 
-      gsub("#", "", id)
+      grab <- paste0(private$id, "_cicerone_state")
+      session$input[[grab]]
     },
 #' @details Retrieve data that was fired when the user hit the "next" button.
-#' 
+#'
 #' @param session A valid Shiny session if `NULL` the function
 #' attempts to get the session with [shiny::getDefaultReactiveDomain()].
     get_next = function(session = NULL){
       if(is.null(session))
         session <- shiny::getDefaultReactiveDomain()
-      
+
       grab <- paste0(private$id, "_cicerone_next")
       session$input[[grab]]
     },
 #' @details Retrieve data that was fired when the user hit the "previous" button.
-#' 
+#'
 #' @param session A valid Shiny session if `NULL` the function
 #' attempts to get the session with [shiny::getDefaultReactiveDomain()].
     get_previous = function(session = NULL){
