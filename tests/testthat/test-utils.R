@@ -34,6 +34,19 @@ test_that("normalize_buttons handles logicals and vectors", {
   expect_error(normalize_buttons("nope"))
 })
 
+test_that("position_to_side_align passes NULL through", {
+  expect_equal(
+    position_to_side_align(NULL),
+    list(side = NULL, align = NULL)
+  )
+})
+
+test_that("deprecated_arg points to the replacement", {
+  expect_warning(deprecated_arg("value", "old_arg", "new_arg"), "new_arg")
+  expect_null(suppressWarnings(deprecated_arg("value", "old_arg")))
+  expect_silent(deprecated_arg(NULL, "old_arg"))
+})
+
 test_that("prep_element detects selectors", {
   expect_equal(prep_element("plot"), "#plot")
   expect_equal(prep_element("#plot"), "#plot")

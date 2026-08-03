@@ -65,6 +65,14 @@ themselves more intelligently.
 - Added a demo application, see
   `shiny::runApp(system.file("examples/demo", package = "cicerone"))`.
 
+## Bug workarounds
+
+- Works around a driver.js 1.8.0 bug where, with `animate = TRUE`,
+  advancing before the highlight transition completes leaks the
+  `driver-active-element` class (and its `pointer-events: auto`) on
+  previously visited elements, leaving them clickable underneath the
+  overlay. cicerone now strips stale tags at every highlight start.
+
 # cicerone 1.0.5.9000
 
 - Added `run_once` argument.

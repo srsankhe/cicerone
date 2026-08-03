@@ -129,6 +129,96 @@ test_that("tab requires tab_id and vice versa", {
   expect_error(Cicerone$new()$step("x", tab_id = "t"))
 })
 
+test_that("methods fall back to the default reactive domain", {
+  s <- make_session()
+  g <- Cicerone$new(id = "g5")$step("plot", title = "x")
+
+  shiny::withReactiveDomain(s, {
+    g$init()
+    g$start()
+    g$move_forward()
+    g$move_backward()
+    g$move_to(2)
+    g$refresh()
+    g$highlight("plot")
+    g$reset()
+  })
+
+  types <- vapply(s$msgs, `[[`, character(1), "type")
+  expect_equal(types, c(
+    "cicerone-init", "cicerone-start", "cicerone-next",
+    "cicerone-previous", "cicerone-move-to", "cicerone-refresh",
+    "cicerone-highlight", "cicerone-reset"
+  ))
+})
+
+test_that("state getters read Shiny inputs", {
+  s <- make_session()
+  s$input <- list(
+    g6_cicerone_state = list(
+      highlighted = "a", before_previous = "b", has_next = TRUE
+    ),
+    g6_cicerone_next = list(highlighted = "a"),
+    g6_cicerone_previous = list(highlighted = "b")
+  )
+  g <- Cicerone$new(id = "g6")
+
+  expect_equal(g$get_state(session = s)$highlighted, "a")
+  expect_equal(g$get_next(session = s)$highlighted, "a")
+  expect_equal(g$get_previous(session = s)$highlighted, "b")
+
+  shiny::withReactiveDomain(s, {
+    expect_true(g$get_state()$has_next)
+    expect_equal(g$get_next()$highlighted, "a")
+    expect_equal(g$get_previous()$highlighted, "b")
+  })
+})
+
+test_that("deprecated getters warn and read from the state", {
+  s <- make_session()
+  s$input <- list(
+    g7_cicerone_state = list(
+      highlighted = "a", before_previous = "b", has_next = TRUE
+    )
+  )
+  g <- Cicerone$new(id = "g7")
+
+  expect_warning(hl <- g$get_highlighted_el(session = s), "get_state")
+  expect_equal(hl, "a")
+  expect_warning(prev <- g$get_previous_el(session = s), "get_state")
+  expect_equal(prev, "b")
+  expect_warning(nxt <- g$has_next_step(session = s), "get_state")
+  expect_true(nxt)
+
+  # no state yet: tour never highlighted anything
+  empty <- make_session()
+  expect_warning(hl <- g$get_highlighted_el(session = empty), "get_state")
+  expect_null(hl)
+  expect_warning(prev <- g$get_previous_el(session = empty), "get_state")
+  expect_null(prev)
+  expect_warning(nxt <- g$has_next_step(session = empty), "get_state")
+  expect_null(nxt)
+})
+
+test_that("mathjax wraps on_highlighted", {
+  s <- make_session()
+  g <- Cicerone$new(id = "gm", mathjax = TRUE)$step(
+    "plot", title = "x", on_highlighted = "console.log(1);"
+  )
+  g$init(session = s)
+
+  on_highlighted <- s$msgs[[1]]$message$steps[[1]]$onHighlighted
+  expect_match(on_highlighted, "MathJax", fixed = TRUE)
+  expect_match(on_highlighted, "console.log(1);", fixed = TRUE)
+})
+
+test_that("is_id is deprecated", {
+  expect_warning(
+    Cicerone$new()$step("plot", title = "x", is_id = TRUE),
+    "is_id"
+  )
+})
+
 test_that("functional API maps arguments", {
   s <- make_session()
 

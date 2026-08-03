@@ -4,6 +4,7 @@
 
 <!-- badges: start -->
 [![CRAN status](https://www.r-pkg.org/badges/version/cicerone)](https://CRAN.R-project.org/package=cicerone)
+[![Codecov test coverage](https://codecov.io/gh/srsankhe/cicerone/graph/badge.svg)](https://app.codecov.io/gh/srsankhe/cicerone)
 <!-- badges: end -->
 
 A convenient API to create guided tours of Shiny applications using [driver.js](https://driverjs.com/).

@@ -41,3 +41,41 @@ test_that("hints build and send the right messages", {
 test_that("hint requires el", {
   expect_error(Hints$new()$hint())
 })
+
+test_that("global beacon options land in the config", {
+  s <- make_session()
+  h <- Hints$new(
+    id = "hb", beacon_side = "left", beacon_align = "end",
+    beacon_animate = FALSE, beacon_class = "my-beacon"
+  )$hint("plot", title = "x")
+  h$init(session = s)
+
+  beacon <- s$msgs[[1]]$message$config$beacon
+  expect_equal(beacon$side, "left")
+  expect_equal(beacon$align, "end")
+  expect_false(beacon$animate)
+  expect_equal(beacon$className, "my-beacon")
+})
+
+test_that("hint methods fall back to the default reactive domain", {
+  s <- make_session()
+  h <- Hints$new(id = "hd")$hint("plot", title = "x", hint_id = "p1")
+
+  shiny::withReactiveDomain(s, {
+    h$init()
+    h$show()
+    h$hide()
+    h$open(1)
+    h$close()
+    h$dismiss(1)
+    h$restore(1)
+    h$refresh()
+  })
+
+  types <- vapply(s$msgs, `[[`, character(1), "type")
+  expect_equal(types, c(
+    "cicerone-hints-init", "cicerone-hints-show", "cicerone-hints-hide",
+    "cicerone-hints-open", "cicerone-hints-close", "cicerone-hints-dismiss",
+    "cicerone-hints-restore", "cicerone-hints-refresh"
+  ))
+})

@@ -110,6 +110,23 @@ const wrapPrevious = (id, fn) => {
   };
 };
 
+// Workaround for a driver.js 1.8.0 bug: with animate: true, advancing
+// before the ~400ms transition completes leaks `driver-active-element`
+// on the mid-animation element. driver.js reads the element to clean up
+// from state that a superseded transition never commits (its callback
+// self-terminates via the __transitionCallback guard). Since the class
+// grants pointer-events: auto, every leaked element stays clickable
+// under the overlay. Strip stale tags at every highlight start; driver
+// re-tags the current element right after.
+const cleanupStaleHighlights = () => {
+  document.querySelectorAll(".driver-active-element").forEach((el) => {
+    el.classList.remove("driver-active-element", "driver-no-interaction");
+    el.removeAttribute("aria-haspopup");
+    el.removeAttribute("aria-expanded");
+    el.removeAttribute("aria-controls");
+  });
+};
+
 // Activate a Shiny tabset before highlighting an element in it
 const makeTabActivator = (tabId, tab) => {
   return () => {
@@ -135,6 +152,15 @@ Shiny.addCustomMessageHandler("cicerone-init", function (opts) {
     config.overlayClickBehavior = evalFunction(config.overlayClickBehavior);
   }
 
+  // strip leaked driver-active-element tags on every transfer;
+  // note: a step-level onHighlightStarted overrides this hook, so the
+  // step loop below re-injects the cleanup there
+  const userHighlightStarted = config.onHighlightStarted;
+  config.onHighlightStarted = (element, step, hookOpts) => {
+    cleanupStaleHighlights();
+    if (userHighlightStarted) userHighlightStarted(element, step, hookOpts);
+  };
+
   // always notify Shiny of state when a step is highlighted
   const userHighlighted = config.onHighlighted;
   config.onHighlighted = (element, step, hookOpts) => {
@@ -156,12 +182,16 @@ Shiny.addCustomMessageHandler("cicerone-init", function (opts) {
 
   const steps = opts.steps || [];
   steps.forEach((step) => {
-    // activate tab before highlighting, composing with any user hook
-    if (step.tab_id && step.tab) {
-      const activateTab = makeTabActivator(step.tab_id, step.tab);
-      const userStart = evalFunction(step.onHighlightStarted);
+    // step-level onHighlightStarted overrides the config-level hook in
+    // driver.js, so any step that defines one (directly or via tab
+    // activation) must run the stale-highlight cleanup itself
+    const activateTab =
+      step.tab_id && step.tab ? makeTabActivator(step.tab_id, step.tab) : null;
+    const userStart = evalFunction(step.onHighlightStarted);
+    if (activateTab || userStart) {
       step.onHighlightStarted = (element, s, hookOpts) => {
-        activateTab();
+        cleanupStaleHighlights();
+        if (activateTab) activateTab();
         if (userStart) userStart(element, s, hookOpts);
       };
     }
@@ -230,7 +260,8 @@ Shiny.addCustomMessageHandler("cicerone-highlight", function (opts) {
 Shiny.addCustomMessageHandler("cicerone-highlight-man", function (opts) {
   const id = opts.id;
   delete opts.id;
-  if (!drivers[id]) drivers[id] = Driver({});
+  if (!drivers[id])
+    drivers[id] = Driver({ onHighlightStarted: cleanupStaleHighlights });
   if (opts.popover) {
     evalHooks(opts.popover, POPOVER_HOOKS);
     if (opts.popover.onNextClick) {
