@@ -16,7 +16,11 @@ Authors@R:
     person(given = "Stephen",
            family = "Holsenbeck",
            role = "ctb",
-           email = "sholsen@alumni.emory.edu")
+           email = "sholsen@alumni.emory.edu"),
+    person(given = "Sumedh",
+           family = "Sankhe",
+           role = "ctb",
+           email = "ssankhe@alamarbio.com")
   )
 Description: Provide step by step guided tours and hints of 'Shiny'
     applications using 'driver.js'.
@@ -28,10 +32,10 @@ Imports:
     shiny,
     htmltools,
     assertthat
-RoxygenNote: 7.2.3
 Roxygen: list(markdown = TRUE)
 Suggests:
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
 URL: https://cicerone.john-coene.com/
 BugReports: https://github.com/JohnCoene/cicerone/issues
+Config/roxygen2/version: 8.0.0

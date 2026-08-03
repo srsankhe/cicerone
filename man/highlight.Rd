@@ -16,28 +16,40 @@ highlight(
   close_btn_text = NULL,
   next_btn_text = NULL,
   prev_btn_text = NULL,
+  side = NULL,
+  align = NULL,
+  disable_buttons = NULL,
+  done_btn_text = NULL,
   session = NULL
 )
 
 initialise(
   id,
   animate = TRUE,
-  opacity = 0.75,
-  padding = 10,
+  opacity = NULL,
+  padding = NULL,
   allow_close = TRUE,
-  overlay_click_next = FALSE,
+  overlay_click_next = NULL,
   done_btn_text = "Done",
-  close_btn_text = "Close",
-  stage_background = "#ffffff",
+  close_btn_text = NULL,
+  stage_background = NULL,
   next_btn_text = "Next",
   prev_btn_text = "Previous",
   show_btns = TRUE,
   keyboard_control = TRUE,
+  overlay_color = NULL,
+  overlay_opacity = 0.75,
+  overlay_click_behavior = NULL,
+  smooth_scroll = FALSE,
+  stage_padding = 10,
+  stage_radius = NULL,
+  popover_class = NULL,
+  popover_offset = NULL,
   session = NULL
 )
 }
 \arguments{
-\item{el}{Id of element to be highlighted.}
+\item{el}{Selector of the element to be highlighted, e.g.: an id.}
 
 \item{id}{Unique identifier of cicerone.}
 
@@ -45,65 +57,81 @@ initialise(
 
 \item{description}{Body of the popover.}
 
-\item{position}{Where to position the popover.
-See positions section.}
+\item{position}{Deprecated, use \code{side} and \code{align}. See the side
+and alignment section.}
 
-\item{class}{className to wrap this specific step
-popover in addition to the general className in Driver
-options.}
+\item{class}{className to wrap this specific popover, in addition
+to the general \code{popover_class} passed to \code{\link[=initialise]{initialise()}}.}
 
-\item{show_btns}{Do not show control buttons in footer.}
+\item{show_btns}{Whether to show control buttons, \code{TRUE}/\code{FALSE}, or a
+character vector of buttons to show among \code{"next"}, \code{"previous"},
+and \code{"close"}.}
 
-\item{close_btn_text}{Text on the close button for this step.}
+\item{close_btn_text}{Deprecated: driver.js 1.x renders the close
+button as an x icon, it no longer has text.}
 
-\item{next_btn_text}{Next button text for this step.}
+\item{next_btn_text}{Next button text.}
 
-\item{prev_btn_text}{Previous button text for this step.}
+\item{prev_btn_text}{Previous button text.}
 
-\item{session}{A valid Shiny session if \code{NULL}
-the function attempts to get the session with
-\code{\link[shiny:domains]{shiny::getDefaultReactiveDomain()}}.}
+\item{side}{Side the popover is positioned on: \code{"left"}, \code{"right"},
+\code{"top"}, \code{"bottom"} or \code{"over"}.}
 
-\item{animate}{Whether to animate or not.}
+\item{align}{Alignment of the popover along the chosen side:
+\code{"start"}, \code{"center"} or \code{"end"}.}
 
-\item{opacity}{Background opacity (0 means only popovers
-and without overlay).}
-
-\item{padding}{Distance of element from around the edges.}
-
-\item{allow_close}{Whether the click on overlay should close
-or not.}
-
-\item{overlay_click_next}{Whether the click on overlay should
-move next.}
+\item{disable_buttons}{Character vector of buttons to render disabled.}
 
 \item{done_btn_text}{Text on the final button.}
 
-\item{stage_background}{Background color for the staged behind
-highlighted element.}
+\item{session}{A valid Shiny session if \code{NULL}
+the function attempts to get the session with
+\code{\link[shiny:getDefaultReactiveDomain]{shiny::getDefaultReactiveDomain()}}.}
+
+\item{animate}{Whether to animate or not.}
+
+\item{opacity}{Deprecated, use \code{overlay_opacity}.}
+
+\item{padding}{Deprecated, use \code{stage_padding}.}
+
+\item{allow_close}{Whether clicking on the overlay should close the tour.}
+
+\item{overlay_click_next}{Deprecated, use \code{overlay_click_behavior}.}
+
+\item{stage_background}{Deprecated: driver.js 1.x cuts the highlighted
+element out of an SVG overlay, there is no stage element to color.}
 
 \item{keyboard_control}{Allow controlling through keyboard (escape
 to close, arrow keys to move).}
+
+\item{overlay_color}{Color of the page overlay, e.g.: \code{"#000"}.}
+
+\item{overlay_opacity}{Opacity of the page overlay, between 0 and 1.}
+
+\item{overlay_click_behavior}{What clicking the overlay does: \code{"close"}
+(default), \code{"nextStep"}, or a string of JavaScript defining a custom
+handler.}
+
+\item{smooth_scroll}{Whether to smooth scroll to the highlighted element.}
+
+\item{stage_padding}{Distance between the highlighted element and the
+edge of the cutout, in pixels.}
+
+\item{stage_radius}{Corner radius of the cutout, in pixels.}
+
+\item{popover_class}{Class added to all popovers, for custom styling.}
+
+\item{popover_offset}{Distance between popover and highlighted
+element, in pixels.}
 }
 \description{
 Initialise and highlight an element.
 }
-\section{Position}{
+\section{Side and alignment}{
 
-\itemize{
-\item left
-\item right
-\item left-center
-\item left-bottom
-\item top
-\item top-center
-\item top-right
-\item right
-\item right-center
-\item right-bottom
-\item bottom
-\item bottom-center
-\item mid-center
-}
+driver.js 1.x positions popovers with \code{side} (\code{left}, \code{right}, \code{top},
+\code{bottom}, \code{over}) and \code{align} (\code{start}, \code{center}, \code{end}). The
+pre-2.0.0 \code{position} values (e.g.: \code{left-center}, \code{top-right},
+\code{mid-center}) are still accepted and mapped automatically.
 }
 

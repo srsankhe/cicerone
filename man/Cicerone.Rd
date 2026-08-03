@@ -4,123 +4,188 @@
 \alias{Cicerone}
 \title{Define Steps}
 \description{
-Define cicerone steps.
+Define cicerone steps, powered by driver.js 1.x.
 }
-\section{Position}{
+\section{Side and alignment}{
 
+driver.js 1.x positions popovers with \code{side} (\code{left}, \code{right},
+\code{top}, \code{bottom}, \code{over}) and \code{align} (\code{start}, \code{center}, \code{end}).
+The pre-2.0.0 \code{position} argument is still accepted and mapped to
+the equivalent \code{side}/\code{align} pair:
 \itemize{
-\item left
-\item right
-\item left-center
-\item left-bottom
-\item top
-\item top-center
-\item top-right
-\item right
-\item right-center
-\item right-bottom
-\item bottom
-\item bottom-center
-\item mid-center
+\item \code{left}, \code{right}, \code{top}, \code{bottom}
+\item \code{left-center}, \code{left-bottom}
+\item \code{top-center}, \code{top-right}
+\item \code{right-center}, \code{right-bottom}
+\item \code{bottom-center}
+\item \code{mid-center}
 }
+}
+
+\section{JavaScript callbacks}{
+
+All \verb{on_*} arguments take a string of JavaScript defining a function.
+Tour hooks receive \verb{(element, step, opts)} where \code{opts} contains
+\code{config}, \code{state} and \code{driver}. For example:
+\code{"function(element, step, opts) { console.log(step); }"}.
 }
 
 \section{Methods}{
 \subsection{Public methods}{
-\itemize{
-\item \href{#method-Cicerone-new}{\code{Cicerone$new()}}
-\item \href{#method-Cicerone-step}{\code{Cicerone$step()}}
-\item \href{#method-Cicerone-init}{\code{Cicerone$init()}}
-\item \href{#method-Cicerone-reset}{\code{Cicerone$reset()}}
-\item \href{#method-Cicerone-start}{\code{Cicerone$start()}}
-\item \href{#method-Cicerone-move_forward}{\code{Cicerone$move_forward()}}
-\item \href{#method-Cicerone-move_backward}{\code{Cicerone$move_backward()}}
-\item \href{#method-Cicerone-highlight}{\code{Cicerone$highlight()}}
-\item \href{#method-Cicerone-get_highlighted_el}{\code{Cicerone$get_highlighted_el()}}
-\item \href{#method-Cicerone-get_previous_el}{\code{Cicerone$get_previous_el()}}
-\item \href{#method-Cicerone-has_next_step}{\code{Cicerone$has_next_step()}}
-\item \href{#method-Cicerone-get_next}{\code{Cicerone$get_next()}}
-\item \href{#method-Cicerone-get_previous}{\code{Cicerone$get_previous()}}
-\item \href{#method-Cicerone-clone}{\code{Cicerone$clone()}}
-}
+  \itemize{
+    \item \href{#method-Cicerone-initialize}{\code{Cicerone$new()}}
+    \item \href{#method-Cicerone-step}{\code{Cicerone$step()}}
+    \item \href{#method-Cicerone-init}{\code{Cicerone$init()}}
+    \item \href{#method-Cicerone-reset}{\code{Cicerone$reset()}}
+    \item \href{#method-Cicerone-destroy}{\code{Cicerone$destroy()}}
+    \item \href{#method-Cicerone-start}{\code{Cicerone$start()}}
+    \item \href{#method-Cicerone-move_forward}{\code{Cicerone$move_forward()}}
+    \item \href{#method-Cicerone-move_backward}{\code{Cicerone$move_backward()}}
+    \item \href{#method-Cicerone-move_to}{\code{Cicerone$move_to()}}
+    \item \href{#method-Cicerone-refresh}{\code{Cicerone$refresh()}}
+    \item \href{#method-Cicerone-highlight}{\code{Cicerone$highlight()}}
+    \item \href{#method-Cicerone-get_highlighted_el}{\code{Cicerone$get_highlighted_el()}}
+    \item \href{#method-Cicerone-get_previous_el}{\code{Cicerone$get_previous_el()}}
+    \item \href{#method-Cicerone-has_next_step}{\code{Cicerone$has_next_step()}}
+    \item \href{#method-Cicerone-get_state}{\code{Cicerone$get_state()}}
+    \item \href{#method-Cicerone-get_next}{\code{Cicerone$get_next()}}
+    \item \href{#method-Cicerone-get_previous}{\code{Cicerone$get_previous()}}
+    \item \href{#method-Cicerone-clone}{\code{Cicerone$clone()}}
+  }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-Cicerone-new"></a>}}
-\if{latex}{\out{\hypertarget{method-Cicerone-new}{}}}
-\subsection{Method \code{new()}}{
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{Cicerone$new(
+\if{html}{\out{<a id="method-Cicerone-initialize"></a>}}
+\if{latex}{\out{\hypertarget{method-Cicerone-initialize}{}}}
+\subsection{\code{Cicerone$new()}}{
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{Cicerone$new(
   animate = TRUE,
-  opacity = 0.75,
-  padding = 10,
+  opacity = NULL,
+  padding = NULL,
   allow_close = TRUE,
-  overlay_click_next = FALSE,
+  overlay_click_next = NULL,
   done_btn_text = "Done",
-  close_btn_text = "Close",
-  stage_background = "#ffffff",
+  close_btn_text = NULL,
+  stage_background = NULL,
   next_btn_text = "Next",
   prev_btn_text = "Previous",
   show_btns = TRUE,
   keyboard_control = TRUE,
   id = NULL,
-  mathjax = FALSE
-)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{animate}}{Whether to animate or not.}
-
-\item{\code{opacity}}{Background opacity (0 means only popovers
-and without overlay).}
-
-\item{\code{padding}}{Distance of element from around the edges.}
-
-\item{\code{allow_close}}{Whether the click on overlay should close
-or not.}
-
-\item{\code{overlay_click_next}}{Whether the click on overlay should
-move next.}
-
-\item{\code{done_btn_text}}{Text on the final button.}
-
-\item{\code{close_btn_text}}{Text on the close button for this step.}
-
-\item{\code{stage_background}}{Background color for the staged behind
-highlighted element.}
-
-\item{\code{next_btn_text}}{Next button text for this step.}
-
-\item{\code{prev_btn_text}}{Previous button text for this step.}
-
-\item{\code{show_btns}}{Do not show control buttons in footer.}
-
-\item{\code{keyboard_control}}{Allow controlling through keyboard (escape
+  mathjax = FALSE,
+  overlay_color = NULL,
+  overlay_opacity = 0.75,
+  overlay_click_behavior = NULL,
+  smooth_scroll = FALSE,
+  stage_padding = 10,
+  stage_radius = NULL,
+  disable_active_interaction = FALSE,
+  advance_on_click = NULL,
+  skip_missing_element = NULL,
+  wait_for_element = NULL,
+  popover_class = NULL,
+  popover_offset = NULL,
+  disable_buttons = NULL,
+  show_progress = FALSE,
+  progress_text = NULL,
+  duration = NULL,
+  on_popover_render = NULL,
+  on_highlight_started = NULL,
+  on_highlighted = NULL,
+  on_deselected = NULL,
+  on_destroy_started = NULL,
+  on_destroyed = NULL,
+  on_next_click = NULL,
+  on_prev_click = NULL,
+  on_close_click = NULL,
+  on_done_click = NULL
+)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{animate}}{Whether to animate or not.}
+      \item{\code{opacity}}{Deprecated, use \code{overlay_opacity}. Background opacity
+(0 means only popovers and without overlay).}
+      \item{\code{padding}}{Deprecated, use \code{stage_padding}. Distance of element
+from around the edges.}
+      \item{\code{allow_close}}{Whether clicking on the overlay should close the tour.}
+      \item{\code{overlay_click_next}}{Deprecated, use \code{overlay_click_behavior}.
+Whether the click on overlay should move next.}
+      \item{\code{done_btn_text}}{Text on the final button.}
+      \item{\code{close_btn_text}}{Deprecated: driver.js 1.x renders the close
+button as an x icon, it no longer has text.}
+      \item{\code{stage_background}}{Deprecated: driver.js 1.x cuts the highlighted
+element out of an SVG overlay, there is no stage element to color.}
+      \item{\code{next_btn_text}}{Next button text.}
+      \item{\code{prev_btn_text}}{Previous button text.}
+      \item{\code{show_btns}}{Whether to show control buttons in the footer. Either
+\code{TRUE}/\code{FALSE}, or a character vector of buttons to show among
+\code{"next"}, \code{"previous"}, and \code{"close"}.}
+      \item{\code{keyboard_control}}{Allow controlling through keyboard (escape
 to close, arrow keys to move).}
-
-\item{\code{id}}{A unique identifier, useful if you are using more than one
+      \item{\code{id}}{A unique identifier, useful if you are using more than one
 cicerone.}
+      \item{\code{mathjax}}{Whether to use MathJax in the steps.}
+      \item{\code{overlay_color}}{Color of the page overlay, e.g.: \code{"#000"}.}
+      \item{\code{overlay_opacity}}{Opacity of the page overlay, between 0 and 1.}
+      \item{\code{overlay_click_behavior}}{What clicking the overlay does: \code{"close"}
+(default) closes the tour, \code{"nextStep"} moves to the next step, or a
+string of JavaScript defining a custom handler.}
+      \item{\code{smooth_scroll}}{Whether to smooth scroll to the highlighted element.}
+      \item{\code{stage_padding}}{Distance between the highlighted element and the
+edge of the cutout, in pixels.}
+      \item{\code{stage_radius}}{Corner radius of the cutout around the highlighted
+element, in pixels.}
+      \item{\code{disable_active_interaction}}{Whether to disable interaction with
+the highlighted element.}
+      \item{\code{advance_on_click}}{Whether clicking the highlighted element
+advances the tour.}
+      \item{\code{skip_missing_element}}{Whether to skip steps whose element is
+not found on the page.}
+      \item{\code{wait_for_element}}{Milliseconds to wait for a step's element to
+appear before giving up.}
+      \item{\code{popover_class}}{Class added to all popovers, for custom styling.}
+      \item{\code{popover_offset}}{Distance between the popover and the highlighted
+element, in pixels.}
+      \item{\code{disable_buttons}}{Character vector of buttons to render disabled,
+among \code{"next"}, \code{"previous"}, and \code{"close"}.}
+      \item{\code{show_progress}}{Whether to show tour progress text in the popover
+(e.g.: \code{"2 of 5"}).}
+      \item{\code{progress_text}}{Template for the progress text, e.g.:
+\code{"{{current}} of {{total}}"}.}
+      \item{\code{duration}}{Animation duration in milliseconds.}
+      \item{\code{on_popover_render}}{JavaScript function called when the popover
+is rendered, receives \verb{(popover, opts)}.}
+      \item{\code{on_highlight_started, on_highlighted, on_deselected}}{JavaScript
+functions called around highlighting of every step.}
+      \item{\code{on_destroy_started, on_destroyed}}{JavaScript functions called
+around tour destruction.}
+      \item{\code{on_next_click, on_prev_click, on_close_click, on_done_click}}{JavaScript functions called on button clicks. When \code{on_next_click}
+or \code{on_prev_click} is set, cicerone still fires the corresponding
+Shiny event and advances the tour, unless the callback returns
+\code{false}.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Details}{
+    Create a new \code{Cicerone} object.
+  }
+  \subsection{Returns}{
+    A Cicerone object.
+  }
+}
 
-\item{\code{mathjax}}{Whether to use MathJax in the steps.}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Details}{
-Create a new \code{Cicerone} object.
-}
-
-\subsection{Returns}{
-A Cicerone object.
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-Cicerone-step"></a>}}
 \if{latex}{\out{\hypertarget{method-Cicerone-step}{}}}
-\subsection{Method \code{step()}}{
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{Cicerone$step(
-  el,
+\subsection{\code{Cicerone$step()}}{
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{Cicerone$step(
+  el = NULL,
   title = NULL,
   description = NULL,
   position = NULL,
@@ -134,310 +199,452 @@ A Cicerone object.
   is_id = NULL,
   on_highlighted = NULL,
   on_highlight_started = NULL,
-  on_next = NULL
-)}\if{html}{\out{</div>}}
+  on_next = NULL,
+  side = NULL,
+  align = NULL,
+  disable_buttons = NULL,
+  show_progress = NULL,
+  progress_text = NULL,
+  done_btn_text = NULL,
+  on_deselected = NULL,
+  on_prev = NULL,
+  on_close = NULL,
+  on_done = NULL,
+  on_popover_render = NULL,
+  disable_active_interaction = NULL,
+  advance_on_click = NULL,
+  skip_missing_element = NULL,
+  wait_for_element = NULL,
+  data = NULL
+)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{el}}{Selector of the element to highlight, e.g.: an id or a class.
+Use \code{NULL} together with \code{title}/\code{description} for a modal-like step
+with no highlighted element.}
+      \item{\code{title}}{Title on the popover.}
+      \item{\code{description}}{Body of the popover.}
+      \item{\code{position}}{Deprecated, use \code{side} and \code{align}. See the side and
+alignment section.}
+      \item{\code{class}}{className for this specific step's popover, in
+addition to the general \code{popover_class} of the tour.}
+      \item{\code{show_btns}}{Buttons to show for this step, \code{TRUE}/\code{FALSE} or a
+character vector among \code{"next"}, \code{"previous"}, and \code{"close"}.}
+      \item{\code{close_btn_text}}{Deprecated: driver.js 1.x renders the close
+button as an x icon, it no longer has text.}
+      \item{\code{next_btn_text}}{Next button text for this step.}
+      \item{\code{prev_btn_text}}{Previous button text for this step.}
+      \item{\code{tab}}{The name of the tab to set.}
+      \item{\code{tab_id}}{The id of the tabs to activate in order to highlight \code{tab_id}.}
+      \item{\code{is_id}}{\strong{Deprecated} Whether the selector passed to \code{el} is an
+HTML id, other selectors are detected automatically.}
+      \item{\code{on_highlighted}}{A JavaScript function to run when the step is
+highlighted, generally a callback function. This is effectively a
+string that is evaluated JavaScript-side.}
+      \item{\code{on_highlight_started}}{A JavaScript function to run when the step
+is just about to be highlighted, generally a callback function. This is
+effectively a string that is evaluated JavaScript-side.}
+      \item{\code{on_next}}{A JavaScript function to run when the next button is
+clicked. Unless the function returns \code{false} the tour then advances.
+This is effectively a string that is evaluated JavaScript-side.}
+      \item{\code{side}}{Side the popover is positioned on: \code{"left"}, \code{"right"},
+\code{"top"}, \code{"bottom"} or \code{"over"}.}
+      \item{\code{align}}{Alignment of the popover along the chosen side:
+\code{"start"}, \code{"center"} or \code{"end"}.}
+      \item{\code{disable_buttons}}{Buttons to render disabled for this step.}
+      \item{\code{show_progress}}{Whether to show progress text on this step.}
+      \item{\code{progress_text}}{Progress text template for this step, e.g.:
+\code{"{{current}} of {{total}}"}.}
+      \item{\code{done_btn_text}}{Done button text, on the last step.}
+      \item{\code{on_deselected}}{A JavaScript function to run when the step is
+deselected (the tour moved away from it).}
+      \item{\code{on_prev}}{A JavaScript function to run when the previous button
+is clicked. Unless the function returns \code{false} the tour then moves
+back.}
+      \item{\code{on_close}}{A JavaScript function to run when the close button is
+clicked.}
+      \item{\code{on_done}}{A JavaScript function to run when the done button is
+clicked, on the last step.}
+      \item{\code{on_popover_render}}{A JavaScript function to run when this step's
+popover is rendered.}
+      \item{\code{disable_active_interaction}}{Whether to disable interaction with
+the highlighted element for this step.}
+      \item{\code{advance_on_click}}{Whether clicking the highlighted element
+advances the tour, for this step.}
+      \item{\code{skip_missing_element}}{Whether to skip this step if its element
+is not found.}
+      \item{\code{wait_for_element}}{Milliseconds to wait for this step's element
+to appear before giving up.}
+      \item{\code{data}}{A named list of arbitrary data attached to the step,
+available to JavaScript callbacks as \code{step.data}.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Details}{
+    Add a step.
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{el}}{Id of element to be highlighted.}
-
-\item{\code{title}}{Title on the popover.}
-
-\item{\code{description}}{Body of the popover.}
-
-\item{\code{position}}{Where to position the popover.
-See positions section.}
-
-\item{\code{class}}{className to wrap this specific step
-popover in addition to the general className in Driver
-options.}
-
-\item{\code{show_btns}}{Whether to show control buttons.}
-
-\item{\code{close_btn_text}}{Text on the close button.}
-
-\item{\code{next_btn_text}}{Next button text.}
-
-\item{\code{prev_btn_text}}{Previous button text.}
-
-\item{\code{tab}}{The name of the tab to set.}
-
-\item{\code{tab_id}}{The id of the tabs to activate in order to highlight \code{tab_id}.}
-
-\item{\code{is_id}}{\strong{Deprecated} Whether the selector passed to \code{el} is an HTML id, set to \code{FALSE} to use
-other selectors, e.g.: \code{.class}.}
-
-\item{\code{on_highlighted}}{A JavaScript function to run when the step is highlighted,
-generally a callback function. This is effectively a string that is evaluated JavaScript-side.}
-
-\item{\code{on_highlight_started}}{A JavaScript function to run when the step is just aobut to be
-highlighted, generally a callback function. This is effectively a string that is evaluated JavaScript-side.}
-
-\item{\code{on_next}}{A JavaScript function to run when the next button is clicked (or its event triggered),
-generally a callback function. This is effectively a string that is evaluated JavaScript-side.}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Details}{
-Add a step.
-}
-
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-Cicerone-init"></a>}}
 \if{latex}{\out{\hypertarget{method-Cicerone-init}{}}}
-\subsection{Method \code{init()}}{
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{Cicerone$init(session = NULL, run_once = FALSE)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{session}}{A valid Shiny session if \code{NULL} the function
-attempts to get the session with \code{\link[shiny:domains]{shiny::getDefaultReactiveDomain()}}.}
-
-\item{\code{run_once}}{Whether to only run the guide once. If \code{TRUE}
+\subsection{\code{Cicerone$init()}}{
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{Cicerone$init(session = NULL, run_once = FALSE)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{session}}{A valid Shiny session if \code{NULL} the function
+attempts to get the session with \code{\link[shiny:getDefaultReactiveDomain]{shiny::getDefaultReactiveDomain()}}.}
+      \item{\code{run_once}}{Whether to only run the guide once. If \code{TRUE}
 any subsequent calls of the method will not run the guide.}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Details}{
-Initialise Cicerone.
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Details}{
+    Initialise Cicerone.
+  }
 }
 
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-Cicerone-reset"></a>}}
 \if{latex}{\out{\hypertarget{method-Cicerone-reset}{}}}
-\subsection{Method \code{reset()}}{
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{Cicerone$reset(session = NULL)}\if{html}{\out{</div>}}
+\subsection{\code{Cicerone$reset()}}{
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{Cicerone$reset(session = NULL)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{session}}{A valid Shiny session if \code{NULL} the function
+attempts to get the session with \code{\link[shiny:getDefaultReactiveDomain]{shiny::getDefaultReactiveDomain()}}.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Details}{
+    Reset (destroy) Cicerone: exits the tour and removes the overlay.
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{session}}{A valid Shiny session if \code{NULL} the function
-attempts to get the session with \code{\link[shiny:domains]{shiny::getDefaultReactiveDomain()}}.}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Details}{
-Reset Cicerone.
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-Cicerone-destroy"></a>}}
+\if{latex}{\out{\hypertarget{method-Cicerone-destroy}{}}}
+\subsection{\code{Cicerone$destroy()}}{
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{Cicerone$destroy(session = NULL)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{session}}{A valid Shiny session if \code{NULL} the function
+attempts to get the session with \code{\link[shiny:getDefaultReactiveDomain]{shiny::getDefaultReactiveDomain()}}.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Details}{
+    Alias for \code{reset}, matching driver.js 1.x terminology.
+  }
 }
 
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-Cicerone-start"></a>}}
 \if{latex}{\out{\hypertarget{method-Cicerone-start}{}}}
-\subsection{Method \code{start()}}{
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{Cicerone$start(step = 1, session = NULL)}\if{html}{\out{</div>}}
+\subsection{\code{Cicerone$start()}}{
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{Cicerone$start(step = 1, session = NULL)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{step}}{The step index at which to start.}
+      \item{\code{session}}{A valid Shiny session if \code{NULL} the function
+attempts to get the session with \code{\link[shiny:getDefaultReactiveDomain]{shiny::getDefaultReactiveDomain()}}.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Details}{
+    Start Cicerone.
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{step}}{The step index at which to start.}
-
-\item{\code{session}}{A valid Shiny session if \code{NULL} the function
-attempts to get the session with \code{\link[shiny:domains]{shiny::getDefaultReactiveDomain()}}.}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Details}{
-Start Cicerone.
-}
-
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-Cicerone-move_forward"></a>}}
 \if{latex}{\out{\hypertarget{method-Cicerone-move_forward}{}}}
-\subsection{Method \code{move_forward()}}{
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{Cicerone$move_forward(session = NULL)}\if{html}{\out{</div>}}
+\subsection{\code{Cicerone$move_forward()}}{
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{Cicerone$move_forward(session = NULL)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{session}}{A valid Shiny session if \code{NULL} the function
+attempts to get the session with \code{\link[shiny:getDefaultReactiveDomain]{shiny::getDefaultReactiveDomain()}}.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Details}{
+    Move Cicerone one step.
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{session}}{A valid Shiny session if \code{NULL} the function
-attempts to get the session with \code{\link[shiny:domains]{shiny::getDefaultReactiveDomain()}}.}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Details}{
-Move Cicerone one step.
-}
-
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-Cicerone-move_backward"></a>}}
 \if{latex}{\out{\hypertarget{method-Cicerone-move_backward}{}}}
-\subsection{Method \code{move_backward()}}{
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{Cicerone$move_backward(session = NULL)}\if{html}{\out{</div>}}
+\subsection{\code{Cicerone$move_backward()}}{
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{Cicerone$move_backward(session = NULL)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{session}}{A valid Shiny session if \code{NULL} the function
+attempts to get the session with \code{\link[shiny:getDefaultReactiveDomain]{shiny::getDefaultReactiveDomain()}}.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Details}{
+    Move Cicerone one step backward.
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{session}}{A valid Shiny session if \code{NULL} the function
-attempts to get the session with \code{\link[shiny:domains]{shiny::getDefaultReactiveDomain()}}.}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Details}{
-Move Cicerone one step backward.
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-Cicerone-move_to"></a>}}
+\if{latex}{\out{\hypertarget{method-Cicerone-move_to}{}}}
+\subsection{\code{Cicerone$move_to()}}{
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{Cicerone$move_to(step, session = NULL)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{step}}{The step index to move to.}
+      \item{\code{session}}{A valid Shiny session if \code{NULL} the function
+attempts to get the session with \code{\link[shiny:getDefaultReactiveDomain]{shiny::getDefaultReactiveDomain()}}.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Details}{
+    Move Cicerone to a specific step.
+  }
 }
 
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-Cicerone-refresh"></a>}}
+\if{latex}{\out{\hypertarget{method-Cicerone-refresh}{}}}
+\subsection{\code{Cicerone$refresh()}}{
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{Cicerone$refresh(session = NULL)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{session}}{A valid Shiny session if \code{NULL} the function
+attempts to get the session with \code{\link[shiny:getDefaultReactiveDomain]{shiny::getDefaultReactiveDomain()}}.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Details}{
+    Refresh the overlay and popover positions, e.g.: after
+dynamically resizing an element.
+  }
 }
+
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-Cicerone-highlight"></a>}}
 \if{latex}{\out{\hypertarget{method-Cicerone-highlight}{}}}
-\subsection{Method \code{highlight()}}{
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{Cicerone$highlight(el, session = NULL)}\if{html}{\out{</div>}}
+\subsection{\code{Cicerone$highlight()}}{
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{Cicerone$highlight(el, session = NULL)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{el}}{Selector of the element to highlight.}
+      \item{\code{session}}{A valid Shiny session if \code{NULL} the function
+attempts to get the session with \code{\link[shiny:getDefaultReactiveDomain]{shiny::getDefaultReactiveDomain()}}.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Details}{
+    Highlight a specific element.
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{el}}{Id of element to highlight}
-
-\item{\code{session}}{A valid Shiny session if \code{NULL} the function
-attempts to get the session with \code{\link[shiny:domains]{shiny::getDefaultReactiveDomain()}}.}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Details}{
-Highlight a specific step.
-}
-
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-Cicerone-get_highlighted_el"></a>}}
 \if{latex}{\out{\hypertarget{method-Cicerone-get_highlighted_el}{}}}
-\subsection{Method \code{get_highlighted_el()}}{
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{Cicerone$get_highlighted_el(session = NULL)}\if{html}{\out{</div>}}
+\subsection{\code{Cicerone$get_highlighted_el()}}{
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{Cicerone$get_highlighted_el(session = NULL)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{session}}{A valid Shiny session if \code{NULL} the function
+attempts to get the session with \code{\link[shiny:getDefaultReactiveDomain]{shiny::getDefaultReactiveDomain()}}.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Details}{
+    Retrieve the id of the currently highlighted element.
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{session}}{A valid Shiny session if \code{NULL} the function
-attempts to get the session with \code{\link[shiny:domains]{shiny::getDefaultReactiveDomain()}}.}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Details}{
-Retrieve the id of the currently highlighted element.
-}
-
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-Cicerone-get_previous_el"></a>}}
 \if{latex}{\out{\hypertarget{method-Cicerone-get_previous_el}{}}}
-\subsection{Method \code{get_previous_el()}}{
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{Cicerone$get_previous_el(session = NULL)}\if{html}{\out{</div>}}
+\subsection{\code{Cicerone$get_previous_el()}}{
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{Cicerone$get_previous_el(session = NULL)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{session}}{A valid Shiny session if \code{NULL} the function
+attempts to get the session with \code{\link[shiny:getDefaultReactiveDomain]{shiny::getDefaultReactiveDomain()}}.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Details}{
+    Retrieve the id of the previously highlighted element.
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{session}}{A valid Shiny session if \code{NULL} the function
-attempts to get the session with \code{\link[shiny:domains]{shiny::getDefaultReactiveDomain()}}.}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Details}{
-Retrieve the id of the previously highlighted element.
-}
-
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-Cicerone-has_next_step"></a>}}
 \if{latex}{\out{\hypertarget{method-Cicerone-has_next_step}{}}}
-\subsection{Method \code{has_next_step()}}{
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{Cicerone$has_next_step(session = NULL)}\if{html}{\out{</div>}}
+\subsection{\code{Cicerone$has_next_step()}}{
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{Cicerone$has_next_step(session = NULL)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{session}}{A valid Shiny session if \code{NULL} the function
+attempts to get the session with \code{\link[shiny:getDefaultReactiveDomain]{shiny::getDefaultReactiveDomain()}}.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Details}{
+    Retrieve whether there is a next step.
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{session}}{A valid Shiny session if \code{NULL} the function
-attempts to get the session with \code{\link[shiny:domains]{shiny::getDefaultReactiveDomain()}}.}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Details}{
-Retrieve whether there is a next step.
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-Cicerone-get_state"></a>}}
+\if{latex}{\out{\hypertarget{method-Cicerone-get_state}{}}}
+\subsection{\code{Cicerone$get_state()}}{
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{Cicerone$get_state(session = NULL)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{session}}{A valid Shiny session if \code{NULL} the function
+attempts to get the session with \code{\link[shiny:getDefaultReactiveDomain]{shiny::getDefaultReactiveDomain()}}.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Details}{
+    Retrieve the state of the tour: a list with \code{highlighted}
+(the highlighted element's id), \code{before_previous}, \code{has_next},
+\code{has_previous}, \code{index} (0-based active step index), \code{is_first},
+\code{is_last}, and \code{total_steps}. Updated every time a step is
+highlighted.
+  }
 }
 
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-Cicerone-get_next"></a>}}
 \if{latex}{\out{\hypertarget{method-Cicerone-get_next}{}}}
-\subsection{Method \code{get_next()}}{
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{Cicerone$get_next(session = NULL)}\if{html}{\out{</div>}}
+\subsection{\code{Cicerone$get_next()}}{
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{Cicerone$get_next(session = NULL)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{session}}{A valid Shiny session if \code{NULL} the function
+attempts to get the session with \code{\link[shiny:getDefaultReactiveDomain]{shiny::getDefaultReactiveDomain()}}.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Details}{
+    Retrieve data that was fired when the user hit the "next" button.
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{session}}{A valid Shiny session if \code{NULL} the function
-attempts to get the session with \code{\link[shiny:domains]{shiny::getDefaultReactiveDomain()}}.}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Details}{
-Retrieve data that was fired when the user hit the "next" button.
-}
-
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-Cicerone-get_previous"></a>}}
 \if{latex}{\out{\hypertarget{method-Cicerone-get_previous}{}}}
-\subsection{Method \code{get_previous()}}{
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{Cicerone$get_previous(session = NULL)}\if{html}{\out{</div>}}
+\subsection{\code{Cicerone$get_previous()}}{
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{Cicerone$get_previous(session = NULL)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{session}}{A valid Shiny session if \code{NULL} the function
+attempts to get the session with \code{\link[shiny:getDefaultReactiveDomain]{shiny::getDefaultReactiveDomain()}}.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Details}{
+    Retrieve data that was fired when the user hit the "previous" button.
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{session}}{A valid Shiny session if \code{NULL} the function
-attempts to get the session with \code{\link[shiny:domains]{shiny::getDefaultReactiveDomain()}}.}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Details}{
-Retrieve data that was fired when the user hit the "previous" button.
-}
-
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-Cicerone-clone"></a>}}
 \if{latex}{\out{\hypertarget{method-Cicerone-clone}{}}}
-\subsection{Method \code{clone()}}{
-The objects of this class are cloneable with this method.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{Cicerone$clone(deep = FALSE)}\if{html}{\out{</div>}}
+\subsection{\code{Cicerone$clone()}}{
+  The objects of this class are cloneable with this method.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{Cicerone$clone(deep = FALSE)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{deep}}{Whether to make a deep clone.}
+    }
+    \if{html}{\out{</div>}}
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{deep}}{Whether to make a deep clone.}
-}
-\if{html}{\out{</div>}}
-}
-}
 }
