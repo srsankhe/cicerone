@@ -106,6 +106,36 @@
   mode, automatically. With no theme applied, every popover's computed
   style is unchanged from driver.js's own default look.
 
+- **Behaviour change:** `Cicerone$new(exclusive = )` now defaults to
+  `TRUE`. Starting a tour destroys every other currently active tour
+  first (their `_ended` fires with `reason = "superseded"`). driver.js
+  gives each live tour instance its own popover and overlay, and always
+  ids the popover element `driver-popover-content`; two tours started at
+  once produced duplicate DOM ids and, in at least one consumer, an
+  orphaned popover left over from the first tour. Set `exclusive =
+  FALSE` to keep the pre-2.1.0 behaviour of overlapping tours.
+- New `destroy_all()` function: destroys every active tour on the page in
+  one call, regardless of `id`, with `reason = "programmatic"`. A
+  session-wide teardown, independent of `exclusive`.
+- New `wait_for_visible` argument on `Cicerone$new()` and `$step()`:
+  milliseconds to wait, before moving to a step, for its element to not
+  just exist but have a non-zero size (e.g. an element in a Shiny tab
+  that has not been shown yet). Implemented by cicerone itself (not
+  driver.js), so it only gates moves cicerone makes; on timeout it emits
+  `{id}_cicerone_event` with `type = "anchor_timeout"` and moves anyway,
+  unless `skip_missing_element` applies, in which case the step is
+  skipped.
+- New `wait_for_element()` function: a standalone element-readiness wait
+  that needs no tour, for gating server-side logic on UI that renders
+  asynchronously. Result arrives on `{id}_cicerone_anchor` (see
+  `?cicerone_inputs`).
+- New `_event` types: `"start_failed"` (a tour is active but rendered no
+  popover one frame after `$start()`; not retried automatically -- the
+  e2e reproduction attempt (chaining a second tour's `$start()` off a
+  click observer, modelling NAS's "no-op start" shape) did not observe
+  this race in three consecutive runs; see the WP7 report) and
+  `"anchor_timeout"` (see `wait_for_visible` above).
+
 # cicerone 2.0.0
 
 Major upgrade: the bundled driver.js was updated from 0.9.8 to 1.8.0, a
