@@ -9,6 +9,9 @@
 # run -- see the header comment in helper-e2e.R.
 library(shiny)
 library(cicerone)
+# --- WP7 begin: htmltools for the anchor fixture's inline <script> ---
+library(htmltools)
+# --- WP7 end ---
 
 mod_ui <- function(id) {
   ns <- NS(id)
@@ -129,6 +132,47 @@ guide_dots <- Cicerone$
 guide_themed <- Cicerone$
   new(id = "e2e_themed", popover_class = "e2e-themed")$
   step(el = "el1", title = "Themed", description = "Accent should be red.")
+# --- WP7 begin: exclusive / destroy_all / anchor fixtures ---
+
+# A second, independent tour: exclusive start of this one (default) must
+# supersede whatever else is active.
+guide_b <- Cicerone$
+  new(id = "e2e_b")$
+  step(el = "el1", title = "B step 1", description = "Tour B, first element.")$
+  step(el = "el2", title = "B step 2", description = "Tour B, second element.")
+
+# `exclusive = FALSE`: starting this one must NOT destroy an active tour.
+guide_nonexcl <- Cicerone$
+  new(id = "e2e_nonexcl", exclusive = FALSE)$
+  step(el = "el1", title = "Non-exclusive step")
+
+# NAS-shape reproduction: this tour's last step highlights #chain_trigger; the
+# `input$chain_trigger` observer below (modelling WP6's not-yet-available
+# `advance_on`) starts tour B from there, superseding this one.
+guide_chain <- Cicerone$
+  new(id = "e2e_chain")$
+  step(el = "el1", title = "Chain step 1")$
+  step(el = "chain_trigger", title = "Chain step 2 (click me)")
+
+# `wait_for_visible` targeting #late_visible (shown 1s after page load, see
+# the UI fixture below): long enough to see it appear, and short enough to
+# time out while it is still hidden.
+guide_anchor_ok <- Cicerone$
+  new(id = "e2e_anchor_ok")$
+  step(
+    el = "late_visible", title = "Anchor ok",
+    description = "wait_for_visible long enough to see #late_visible appear.",
+    wait_for_visible = 3000
+  )
+
+guide_anchor_timeout <- Cicerone$
+  new(id = "e2e_anchor_timeout")$
+  step(
+    el = "late_visible", title = "Anchor timeout",
+    description = "wait_for_visible shorter than the 1s hide.",
+    wait_for_visible = 300
+  )
+# --- WP7 end ---
 
 ui <- fluidPage(
   use_cicerone(),
@@ -165,7 +209,28 @@ ui <- fluidPage(
   checkboxInput("adv_parsed", "Parsed", value = FALSE),
   actionButton("btn_start_adv", "Start advance tour"),
   actionButton("btn_reset_adv", "Reset advance tour"),
-  cicerone_theme(accent = "#ff0000", selector = ".e2e-themed")
+  cicerone_theme(accent = "#ff0000", selector = ".e2e-themed"),
+
+  # --- WP7 begin: exclusive / destroy_all / anchor fixtures ---
+  tags$div(id = "late_visible", style = "display:none;", "Late visible element"),
+  tags$script(HTML(
+    "setTimeout(function(){
+       var el = document.getElementById('late_visible');
+       if (el) el.style.display = 'block';
+     }, 1000);"
+  )),
+  actionButton("chain_trigger", "Chain trigger (WP7)"),
+  actionButton("btn_start_b", "Start tour B"),
+  actionButton("btn_start_nonexcl", "Start non-exclusive tour"),
+  actionButton("btn_start_chain", "Start chain tour"),
+  actionButton("btn_destroy_all", "Destroy all tours"),
+  actionButton("btn_insert_late", "Insert #late after 1s"),
+  actionButton("btn_start_anchor_ok", "Start anchor-ok tour"),
+  actionButton("btn_start_anchor_timeout", "Start anchor-timeout tour"),
+  actionButton("btn_wait_late", "wait_for_element(#late)"),
+  actionButton("btn_wait_never", "wait_for_element(#never)"),
+  actionButton("btn_wait_in_tab2", "wait_for_element(#in_tab2)")
+  # --- WP7 end ---
 )
 
 server <- function(input, output, session) {
@@ -181,6 +246,13 @@ server <- function(input, output, session) {
   guide_bar$init()
   guide_dots$init()
   guide_themed$init()
+  # --- WP7 begin: exclusive / destroy_all / anchor init ---
+  guide_b$init()
+  guide_nonexcl$init()
+  guide_chain$init()
+  guide_anchor_ok$init()
+  guide_anchor_timeout$init()
+  # --- WP7 end ---
 
   observeEvent(input$btn_start, guide$start())
   observeEvent(input$btn_reset, guide$reset())
@@ -195,6 +267,39 @@ server <- function(input, output, session) {
   observeEvent(input$btn_start_bar, guide_bar$start())
   observeEvent(input$btn_start_dots, guide_dots$start())
   observeEvent(input$btn_start_themed, guide_themed$start())
+  # --- WP7 begin: exclusive / destroy_all / anchor observers ---
+  observeEvent(input$btn_start_b, guide_b$start())
+  observeEvent(input$btn_start_nonexcl, guide_nonexcl$start())
+  observeEvent(input$btn_start_chain, guide_chain$start())
+  observeEvent(input$btn_destroy_all, destroy_all())
+  observeEvent(input$btn_start_anchor_ok, guide_anchor_ok$start())
+  observeEvent(input$btn_start_anchor_timeout, guide_anchor_timeout$start())
+
+  # NAS-shape reproduction: clicking the element e2e_chain's last step
+  # highlights (#chain_trigger) starts tour B, modelling WP6's not-yet-available
+  # `advance_on` with a plain observer instead.
+  observeEvent(input$chain_trigger, guide_b$start())
+
+  observeEvent(input$btn_insert_late, {
+    later::later(function() {
+      insertUI(
+        selector = "body", where = "beforeEnd",
+        ui = tags$div(id = "late", "Late element"),
+        immediate = TRUE, session = session
+      )
+    }, delay = 1)
+  })
+
+  observeEvent(input$btn_wait_late, {
+    wait_for_element("#late", timeout = 3000, id = "late")
+  })
+  observeEvent(input$btn_wait_never, {
+    wait_for_element("#never", timeout = 500, id = "never")
+  })
+  observeEvent(input$btn_wait_in_tab2, {
+    wait_for_element("#in_tab2", timeout = 500, id = "in_tab2")
+  })
+  # --- WP7 end ---
 
   output$out_state <- renderPrint(input[["e2e_cicerone_state"]])
   output$out_next <- renderPrint(input[["e2e_cicerone_next"]])
@@ -234,10 +339,43 @@ server <- function(input, output, session) {
     adv_event_log(c(adv_event_log(), entry))
   })
 
+  # --- WP7 begin: event logs for the chain/anchor reproductions ---
+  # `event_log`-style accumulators, scoped per tour, so a test can assert
+  # e.g. "no start_failed/anchor_timeout ever fired", not just the latest
+  # `_event`.
+  chain_event_log <- reactiveVal(character(0))
+  observeEvent(input$e2e_chain_cicerone_event, {
+    chain_event_log(c(chain_event_log(), input$e2e_chain_cicerone_event$type))
+  })
+
+  b_event_log <- reactiveVal(character(0))
+  observeEvent(input$e2e_b_cicerone_event, {
+    b_event_log(c(b_event_log(), input$e2e_b_cicerone_event$type))
+  })
+
+  anchor_ok_event_log <- reactiveVal(character(0))
+  observeEvent(input$e2e_anchor_ok_cicerone_event, {
+    anchor_ok_event_log(c(anchor_ok_event_log(), input$e2e_anchor_ok_cicerone_event$type))
+  })
+
+  anchor_timeout_event_log <- reactiveVal(character(0))
+  observeEvent(input$e2e_anchor_timeout_cicerone_event, {
+    anchor_timeout_event_log(
+      c(anchor_timeout_event_log(), input$e2e_anchor_timeout_cicerone_event$type)
+    )
+  })
+  # --- WP7 end ---
+
   session$exportTestValues(
     event_log = paste(event_log(), collapse = ","),
     close_destroy_ended_count = close_destroy_ended_count(),
-    adv_event_log = paste(adv_event_log(), collapse = ",")
+    adv_event_log = paste(adv_event_log(), collapse = ","),
+    # --- WP7 begin ---
+    chain_event_log = paste(chain_event_log(), collapse = ","),
+    b_event_log = paste(b_event_log(), collapse = ","),
+    anchor_ok_event_log = paste(anchor_ok_event_log(), collapse = ","),
+    anchor_timeout_event_log = paste(anchor_timeout_event_log(), collapse = ",")
+    # --- WP7 end ---
   )
 }
 

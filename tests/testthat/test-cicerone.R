@@ -407,3 +407,53 @@ test_that("step-level progress_style = 'dots' forces show_progress on for that s
 test_that("an invalid step-level progress_style errors", {
   expect_error(Cicerone$new()$step("plot", title = "x", progress_style = "spinner"))
 })
+# --- WP7 begin: exclusive / wait_for_visible / destroy_all unit tests ---
+
+test_that("exclusive defaults to TRUE in the init payload", {
+  s <- make_session()
+  g <- Cicerone$new(id = "wp7_excl_default")$step("plot", title = "x")
+  g$init(session = s)
+
+  expect_true(s$msgs[[1]]$message$globals$exclusive)
+})
+
+test_that("exclusive = FALSE is forwarded to the init payload", {
+  s <- make_session()
+  g <- Cicerone$new(id = "wp7_excl_false", exclusive = FALSE)$step("plot", title = "x")
+  g$init(session = s)
+
+  expect_false(s$msgs[[1]]$message$globals$exclusive)
+})
+
+test_that("wait_for_visible lands at tour and step level", {
+  s <- make_session()
+  g <- Cicerone$new(
+    id = "wp7_wfv", wait_for_visible = 2000
+  )$step(
+    "plot", title = "x", wait_for_visible = 500
+  )$step(
+    "table", title = "y"
+  )
+  g$init(session = s)
+
+  gl <- s$msgs[[1]]$message$globals
+  st <- s$msgs[[1]]$message$steps
+  expect_equal(gl$waitForVisible, 2000)
+  expect_equal(st[[1]]$waitForVisible, 500)
+  expect_null(st[[2]]$waitForVisible)
+})
+
+test_that("destroy_all() sends cicerone-destroy-all", {
+  s <- make_session()
+  destroy_all(session = s)
+
+  expect_equal(s$msgs[[1]]$type, "cicerone-destroy-all")
+})
+
+test_that("destroy_all() falls back to the default reactive domain", {
+  s <- make_session()
+  shiny::withReactiveDomain(s, destroy_all())
+
+  expect_equal(s$msgs[[1]]$type, "cicerone-destroy-all")
+})
+# --- WP7 end ---
