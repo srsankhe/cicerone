@@ -22,6 +22,7 @@ previous time, and are the ones you want in \code{observeEvent()}.
    \verb{\{id\}_cicerone_event} \tab yes \tab \code{list(type, index, element, total_steps, time)} \tab every lifecycle event below, in addition to its specific input \cr
    \verb{\{id\}_cicerone_reset} \tab yes \tab \code{TRUE} \tab the tour is destroyed, for any reason (kept for 1.x compatibility; use \verb{_ended} for the reason) \cr
    \code{cicerone_reset} \tab yes \tab \code{TRUE} \tab any tour on the page is destroyed (not namespaced by \code{id}) \cr
+   \verb{\{id\}_cicerone_seen} \tab yes \tab the persisted record (\code{list(v, status, idx, n, t)}), or \code{NULL} \tab \verb{$init()}, when \code{persist} is set (see \link{Cicerone}); not fired otherwise \cr
 }
 
 
@@ -29,9 +30,11 @@ previous time, and are the ones you want in \code{observeEvent()}.
 step), \code{"close"} (the close button), \code{"programmatic"} (\verb{$reset()}/
 \verb{$destroy()} called from the server, or \code{\link[=destroy_all]{destroy_all()}}),
 \code{"superseded"} (another tour started with \code{exclusive = TRUE} while
-this one was active, see \link{Cicerone}), or \code{"dismissed"} (Escape, an
-overlay click, or anything else). \code{completed} is \code{TRUE} exactly when
-\code{reason} is \code{"done"}.
+this one was active, see \link{Cicerone}), \code{"suppressed"} (\code{persist} is
+set, \verb{$init(run_once = TRUE)}, and the persisted record's \code{status} is
+already \code{"completed"}: \verb{$start()} does not drive the tour), or
+\code{"dismissed"} (Escape, an overlay click, or anything else).
+\code{completed} is \code{TRUE} exactly when \code{reason} is \code{"done"}.
 
 \code{type} in \verb{_event} is one of \code{"started"}, \code{"highlighted"}, \code{"next"},
 \code{"previous"}, \code{"done"}, \code{"close"}, \code{"ended"}, \code{"hint_opened"},
@@ -82,5 +85,5 @@ resolution.
 }
 
 \seealso{
-\link{Cicerone}, \link{Hints}, \code{\link[=destroy_all]{destroy_all()}}, \code{\link[=wait_for_element]{wait_for_element()}}
+\link{Cicerone}, \link{Hints}, \code{\link[=destroy_all]{destroy_all()}}, \code{\link[=wait_for_element]{wait_for_element()}}, \code{\link[=tour_state]{tour_state()}}
 }
