@@ -174,6 +174,28 @@ test_that("state getters read Shiny inputs", {
   })
 })
 
+test_that("get_started/get_ended read Shiny inputs", {
+  s <- make_session()
+  s$input <- list(
+    g6b_cicerone_started = list(index = 0, total_steps = 3),
+    g6b_cicerone_ended = list(
+      reason = "done", completed = TRUE, index = 2, total_steps = 3
+    )
+  )
+  g <- Cicerone$new(id = "g6b")
+
+  expect_equal(g$get_started(session = s)$index, 0)
+  expect_equal(g$get_started(session = s)$total_steps, 3)
+  expect_equal(g$get_ended(session = s)$reason, "done")
+  expect_true(g$get_ended(session = s)$completed)
+  expect_equal(g$get_ended(session = s)$index, 2)
+
+  shiny::withReactiveDomain(s, {
+    expect_equal(g$get_started()$index, 0)
+    expect_equal(g$get_ended()$reason, "done")
+  })
+})
+
 test_that("deprecated getters warn and read from the state", {
   s <- make_session()
   s$input <- list(
