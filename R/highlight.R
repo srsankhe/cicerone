@@ -64,10 +64,12 @@ highlight <- function(el, id, title = NULL, description = NULL, position = NULL,
   class = NULL, show_btns = NULL, close_btn_text = NULL,
   next_btn_text = NULL, prev_btn_text = NULL, side = NULL, align = NULL,
   disable_buttons = NULL, done_btn_text = NULL, show_progress = NULL,
-  progress_text = NULL, on_popover_render = NULL, on_next = NULL,
+  progress_text = NULL, progress_style = NULL,
+  on_popover_render = NULL, on_next = NULL,
   on_prev = NULL, on_close = NULL, on_done = NULL,
   disable_active_interaction = NULL, advance_on_click = NULL,
-  skip_missing_element = NULL, wait_for_element = NULL, data = NULL,
+  skip_missing_element = NULL, wait_for_element = NULL,
+  advance_on = NULL, advance_when = NULL, data = NULL,
   session = NULL) {
 
   if(is.null(session))
@@ -80,6 +82,10 @@ highlight <- function(el, id, title = NULL, description = NULL, position = NULL,
 
   el <- prep_element(el)
 
+  if(!is.null(progress_style))
+    progress_style <- match.arg(progress_style, progress_styles)
+  show_progress <- resolve_show_progress(progress_style, show_progress)
+
   popover <- build_popover(
     title = title,
     description = description,
@@ -91,6 +97,7 @@ highlight <- function(el, id, title = NULL, description = NULL, position = NULL,
     disable_buttons = disable_buttons,
     show_progress = show_progress,
     progress_text = progress_text,
+    progress_style = progress_style,
     next_btn_text = next_btn_text,
     prev_btn_text = prev_btn_text,
     done_btn_text = done_btn_text,
@@ -107,6 +114,8 @@ highlight <- function(el, id, title = NULL, description = NULL, position = NULL,
     advanceOnClick = advance_on_click,
     skipMissingElement = skip_missing_element,
     waitForElement = wait_for_element,
+    advanceOn = normalize_advance_on(advance_on),
+    advanceWhen = validate_advance_when(advance_when),
     data = data
   ))
   step$id <- id
@@ -133,6 +142,7 @@ initialise <- function(id, animate = TRUE, opacity = NULL, padding = NULL,
   skip_missing_element = NULL, wait_for_element = NULL,
   popover_class = NULL, popover_offset = NULL,
   disable_buttons = NULL, show_progress = FALSE, progress_text = NULL,
+  progress_style = c("text", "bar", "dots"),
   duration = NULL,
   on_popover_render = NULL,
   on_highlight_started = NULL, on_highlighted = NULL, on_deselected = NULL,
@@ -158,6 +168,9 @@ initialise <- function(id, animate = TRUE, opacity = NULL, padding = NULL,
       overlay_click_behavior <- "nextStep"
   }
 
+  progress_style <- match.arg(progress_style, progress_styles)
+  show_progress <- resolve_show_progress(progress_style, show_progress)
+
   globals <- build_config(
     animate = animate,
     overlay_color = overlay_color,
@@ -179,6 +192,7 @@ initialise <- function(id, animate = TRUE, opacity = NULL, padding = NULL,
     disable_buttons = disable_buttons,
     show_progress = show_progress,
     progress_text = progress_text,
+    progress_style = progress_style,
     next_btn_text = next_btn_text,
     prev_btn_text = prev_btn_text,
     done_btn_text = done_btn_text,

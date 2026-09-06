@@ -28,6 +28,12 @@ among \code{"next"}, \code{"previous"}, and \code{"close"}.}
 \item{progress_text}{Template for the progress text, e.g.:
 \code{"{{current}} of {{total}}"}.}
 
+\item{progress_style}{Progress indicator style: \code{"text"} (the
+default, e.g.: \code{"2 of 5"}), \code{"bar"}, or \code{"dots"}, themable with
+\code{\link[=cicerone_theme]{cicerone_theme()}}. \code{"bar"}/\code{"dots"} force \code{show_progress} on
+regardless of the \code{show_progress} argument. At the step level, \code{NULL}
+inherits the tour's style.}
+
 \item{duration}{Animation duration in milliseconds.}
 
 \item{on_popover_render}{JavaScript function called when the popover
@@ -57,6 +63,19 @@ clicked.}
 
 \item{on_done}{A JavaScript function to run when the done button is
 clicked, on the last step.}
+
+\item{advance_on}{Advance the tour when a DOM event fires on any
+element on the page, not only the highlighted one (see
+\code{advance_on_click} for that). A selector string (the event defaults
+to \code{"click"}), or \code{list(el = "...", event = "...")}.}
+
+\item{advance_when}{A JavaScript predicate \verb{(step, opts) => boolean}.
+Evaluated once when the step is highlighted, then again on every DOM
+mutation and \code{input}/\code{change} event until it returns \code{true}, at which
+point the tour advances. For a server-driven alternative, use
+\code{observeEvent(input$x, tour$move_forward())}. On the tour's last step,
+either mechanism completes the tour (\verb{\{id\}_cicerone_ended$reason} is
+\code{"done"}), as does \verb{$move_forward()}.}
 
 \item{data}{A named list of arbitrary data attached to the step,
 available to JavaScript callbacks as \code{step.data}.}
