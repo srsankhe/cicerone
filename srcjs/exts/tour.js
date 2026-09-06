@@ -2,10 +2,16 @@
 import { driver as Driver } from "driver.js";
 import {
   drivers,
+  active,
+  pendingReason,
   getStateData,
+  stateFromHookOpts,
   wrapNext,
   wrapPrevious,
+  wrapDone,
+  wrapClose,
   emitInput,
+  emitEvent,
 } from "./bridge.js";
 import {
   evalFunction,
@@ -37,6 +43,9 @@ Shiny.addCustomMessageHandler("cicerone-init", function (opts) {
   const config = opts.globals || {};
   delete config.id;
 
+  active[id] = false;
+  pendingReason[id] = null;
+
   // string hooks -> functions
   evalHooks(config, CONFIG_HOOKS);
   if (
@@ -44,6 +53,21 @@ Shiny.addCustomMessageHandler("cicerone-init", function (opts) {
     !["close", "nextStep"].includes(config.overlayClickBehavior)
   ) {
     config.overlayClickBehavior = evalFunction(config.overlayClickBehavior);
+  }
+  // driver.js's own "close" string only destroys internally, bypassing
+  // every hook; replace it with a function so overlay clicks get tagged
+  // "dismissed" like Escape does. Leave "nextStep" and a user-supplied
+  // function alone -- those already route through onDoneClick/onNextClick
+  // (nextStep) or are the consumer's own business (function).
+  if (
+    config.overlayClickBehavior === "close" ||
+    typeof config.overlayClickBehavior === "undefined"
+  ) {
+    config.overlayClickBehavior = (element, step, hookOpts) => {
+      if (!hookOpts.config.allowClose) return;
+      pendingReason[id] = "dismissed";
+      if (drivers[id] && drivers[id].isActive()) drivers[id].destroy();
+    };
   }
 
   // strip leaked driver-active-element tags on every transfer;
@@ -55,21 +79,70 @@ Shiny.addCustomMessageHandler("cicerone-init", function (opts) {
     if (userHighlightStarted) userHighlightStarted(element, step, hookOpts);
   };
 
-  // always notify Shiny of state when a step is highlighted
+  // always notify Shiny of state when a step is highlighted; the first
+  // highlight of a drive() also fires `_started`/event "started" (but not
+  // a subsequent move_to(), which re-highlights without a fresh drive())
   const userHighlighted = config.onHighlighted;
   config.onHighlighted = (element, step, hookOpts) => {
     if (userHighlighted) userHighlighted(element, step, hookOpts);
-    emitInput(id, "state", getStateData(drivers[id]), false);
+    const state = getStateData(drivers[id]);
+    emitInput(id, "state", state, false);
+    if (!active[id]) {
+      active[id] = true;
+      emitInput(id, "started", {
+        index: state.index,
+        total_steps: state.total_steps,
+      });
+      emitEvent(id, "started", state);
+    }
+    emitEvent(id, "highlighted", state);
   };
 
   // always notify Shiny when next/previous is clicked
-  config.onNextClick = wrapNext(id, config.onNextClick);
+  const origConfigNext = config.onNextClick;
+  const origConfigDone = config.onDoneClick;
+  const origConfigClose = config.onCloseClick;
+
+  config.onNextClick = wrapNext(id, origConfigNext);
   config.onPrevClick = wrapPrevious(id, config.onPrevClick);
+  config.onCloseClick = wrapClose(id, origConfigClose);
+
+  // driver.js only calls onDoneClick when it is defined, and only on the
+  // last non-skipped step; defining it unconditionally means driver.js
+  // stops falling back to onNextClick there (see `L()` in
+  // driver.js.mjs), so this wrapper resolves that same fallback chain
+  // itself, using the ORIGINAL (pre-wrap) hooks -- calling the already
+  // wrapped onNextClick here would double-emit `_next` and call
+  // moveNext() right before we destroy().
+  config.onDoneClick = wrapDone(id, (step) => {
+    const popover = (step && step.popover) || {};
+    return (
+      popover._cicOrigDone ||
+      origConfigDone ||
+      popover._cicOrigNext ||
+      origConfigNext
+    );
+  });
 
   // always notify Shiny when the tour is closed/destroyed
   const userDestroyed = config.onDestroyed;
   config.onDestroyed = (element, step, hookOpts) => {
     if (userDestroyed) userDestroyed(element, step, hookOpts);
+
+    const reason = pendingReason[id] || "dismissed";
+    const state = stateFromHookOpts(hookOpts);
+
+    emitInput(id, "ended", {
+      reason: reason,
+      completed: reason === "done",
+      index: state.index,
+      total_steps: state.total_steps,
+    });
+    emitEvent(id, "ended", state);
+
+    pendingReason[id] = null;
+    active[id] = false;
+
     Shiny.setInputValue("cicerone_reset", true, { priority: "event" });
     emitInput(id, "reset", true);
   };
@@ -96,17 +169,25 @@ Shiny.addCustomMessageHandler("cicerone-init", function (opts) {
 
     if (step.popover) {
       evalHooks(step.popover, POPOVER_HOOKS);
+
+      // stash the ORIGINAL (pre-wrap) done/next hooks of this step's
+      // popover for the config-level onDoneClick fallback above, before
+      // wrapping onNextClick below turns the latter into a wrapNext()
+      // closure
+      step.popover._cicOrigDone = step.popover.onDoneClick;
+      step.popover._cicOrigNext = evalFunction(step.popover.onNextClick);
+
       if (step.popover.onNextClick) {
-        step.popover.onNextClick = wrapNext(
-          id,
-          evalFunction(step.popover.onNextClick),
-        );
+        step.popover.onNextClick = wrapNext(id, step.popover._cicOrigNext);
       }
       if (step.popover.onPrevClick) {
         step.popover.onPrevClick = wrapPrevious(
           id,
           evalFunction(step.popover.onPrevClick),
         );
+      }
+      if (step.popover.onCloseClick) {
+        step.popover.onCloseClick = wrapClose(id, step.popover.onCloseClick);
       }
     }
   });
@@ -122,6 +203,7 @@ Shiny.addCustomMessageHandler("cicerone-start", function (opts) {
 
 Shiny.addCustomMessageHandler("cicerone-reset", function (opts) {
   if (!drivers[opts.id]) return;
+  pendingReason[opts.id] = "programmatic";
   drivers[opts.id].destroy();
 });
 
