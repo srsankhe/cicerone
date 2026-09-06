@@ -47,6 +47,7 @@
 #' @param session A valid Shiny session if `NULL`
 #' the function attempts to get the session with
 #' [shiny::getDefaultReactiveDomain()].
+#' @inheritParams cicerone_params
 #'
 #' @section Side and alignment:
 #' driver.js 1.x positions popovers with `side` (`left`, `right`, `top`,
@@ -62,7 +63,14 @@
 highlight <- function(el, id, title = NULL, description = NULL, position = NULL,
   class = NULL, show_btns = NULL, close_btn_text = NULL,
   next_btn_text = NULL, prev_btn_text = NULL, side = NULL, align = NULL,
-  disable_buttons = NULL, done_btn_text = NULL, session = NULL) {
+  disable_buttons = NULL, done_btn_text = NULL, show_progress = NULL,
+  progress_text = NULL, progress_style = NULL,
+  on_popover_render = NULL, on_next = NULL,
+  on_prev = NULL, on_close = NULL, on_done = NULL,
+  disable_active_interaction = NULL, advance_on_click = NULL,
+  skip_missing_element = NULL, wait_for_element = NULL,
+  advance_on = NULL, advance_when = NULL, data = NULL,
+  session = NULL) {
 
   if(is.null(session))
     session <- shiny::getDefaultReactiveDomain()
@@ -74,6 +82,10 @@ highlight <- function(el, id, title = NULL, description = NULL, position = NULL,
 
   el <- prep_element(el)
 
+  if(!is.null(progress_style))
+    progress_style <- match.arg(progress_style, progress_styles)
+  show_progress <- resolve_show_progress(progress_style, show_progress)
+
   popover <- build_popover(
     title = title,
     description = description,
@@ -83,12 +95,29 @@ highlight <- function(el, id, title = NULL, description = NULL, position = NULL,
     popover_class = class,
     show_buttons = show_btns,
     disable_buttons = disable_buttons,
+    show_progress = show_progress,
+    progress_text = progress_text,
+    progress_style = progress_style,
     next_btn_text = next_btn_text,
     prev_btn_text = prev_btn_text,
-    done_btn_text = done_btn_text
+    done_btn_text = done_btn_text,
+    on_popover_render = on_popover_render,
+    on_next_click = on_next,
+    on_prev_click = on_prev,
+    on_close_click = on_close,
+    on_done_click = on_done
   )
 
-  step <- list(element = el)
+  step <- drop_nulls(list(
+    element = el,
+    disableActiveInteraction = disable_active_interaction,
+    advanceOnClick = advance_on_click,
+    skipMissingElement = skip_missing_element,
+    waitForElement = wait_for_element,
+    advanceOn = normalize_advance_on(advance_on),
+    advanceWhen = validate_advance_when(advance_when),
+    data = data
+  ))
   step$id <- id
 
   if(length(popover))
@@ -107,8 +136,20 @@ initialise <- function(id, animate = TRUE, opacity = NULL, padding = NULL,
   prev_btn_text = "Previous", show_btns = TRUE, keyboard_control = TRUE,
   overlay_color = NULL, overlay_opacity = .75,
   overlay_click_behavior = NULL, smooth_scroll = FALSE,
+  allow_scroll = TRUE,
   stage_padding = 10, stage_radius = NULL,
-  popover_class = NULL, popover_offset = NULL, session = NULL) {
+  disable_active_interaction = FALSE, advance_on_click = NULL,
+  skip_missing_element = NULL, wait_for_element = NULL,
+  popover_class = NULL, popover_offset = NULL,
+  disable_buttons = NULL, show_progress = FALSE, progress_text = NULL,
+  progress_style = c("text", "bar", "dots"),
+  duration = NULL,
+  on_popover_render = NULL,
+  on_highlight_started = NULL, on_highlighted = NULL, on_deselected = NULL,
+  on_destroy_started = NULL, on_destroyed = NULL,
+  on_next_click = NULL, on_prev_click = NULL,
+  on_close_click = NULL, on_done_click = NULL,
+  session = NULL) {
 
   assertthat::assert_that(!missing(id), msg = "Must pass a unique `id`")
 
@@ -127,22 +168,45 @@ initialise <- function(id, animate = TRUE, opacity = NULL, padding = NULL,
       overlay_click_behavior <- "nextStep"
   }
 
+  progress_style <- match.arg(progress_style, progress_styles)
+  show_progress <- resolve_show_progress(progress_style, show_progress)
+
   globals <- build_config(
     animate = animate,
     overlay_color = overlay_color,
     overlay_opacity = overlay_opacity,
     smooth_scroll = smooth_scroll,
     allow_close = allow_close,
+    allow_scroll = allow_scroll,
     overlay_click_behavior = overlay_click_behavior,
     stage_padding = stage_padding,
     stage_radius = stage_radius,
     allow_keyboard_control = keyboard_control,
+    disable_active_interaction = disable_active_interaction,
+    advance_on_click = advance_on_click,
+    skip_missing_element = skip_missing_element,
+    wait_for_element = wait_for_element,
     popover_class = popover_class,
     popover_offset = popover_offset,
     show_buttons = show_btns,
+    disable_buttons = disable_buttons,
+    show_progress = show_progress,
+    progress_text = progress_text,
+    progress_style = progress_style,
     next_btn_text = next_btn_text,
     prev_btn_text = prev_btn_text,
-    done_btn_text = done_btn_text
+    done_btn_text = done_btn_text,
+    duration = duration,
+    on_popover_render = on_popover_render,
+    on_highlight_started = on_highlight_started,
+    on_highlighted = on_highlighted,
+    on_deselected = on_deselected,
+    on_destroy_started = on_destroy_started,
+    on_destroyed = on_destroyed,
+    on_next_click = on_next_click,
+    on_prev_click = on_prev_click,
+    on_close_click = on_close_click,
+    on_done_click = on_done_click
   )
 
   globals$id <- id

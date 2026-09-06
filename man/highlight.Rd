@@ -20,6 +20,21 @@ highlight(
   align = NULL,
   disable_buttons = NULL,
   done_btn_text = NULL,
+  show_progress = NULL,
+  progress_text = NULL,
+  progress_style = NULL,
+  on_popover_render = NULL,
+  on_next = NULL,
+  on_prev = NULL,
+  on_close = NULL,
+  on_done = NULL,
+  disable_active_interaction = NULL,
+  advance_on_click = NULL,
+  skip_missing_element = NULL,
+  wait_for_element = NULL,
+  advance_on = NULL,
+  advance_when = NULL,
+  data = NULL,
   session = NULL
 )
 
@@ -41,10 +56,30 @@ initialise(
   overlay_opacity = 0.75,
   overlay_click_behavior = NULL,
   smooth_scroll = FALSE,
+  allow_scroll = TRUE,
   stage_padding = 10,
   stage_radius = NULL,
+  disable_active_interaction = FALSE,
+  advance_on_click = NULL,
+  skip_missing_element = NULL,
+  wait_for_element = NULL,
   popover_class = NULL,
   popover_offset = NULL,
+  disable_buttons = NULL,
+  show_progress = FALSE,
+  progress_text = NULL,
+  progress_style = c("text", "bar", "dots"),
+  duration = NULL,
+  on_popover_render = NULL,
+  on_highlight_started = NULL,
+  on_highlighted = NULL,
+  on_deselected = NULL,
+  on_destroy_started = NULL,
+  on_destroyed = NULL,
+  on_next_click = NULL,
+  on_prev_click = NULL,
+  on_close_click = NULL,
+  on_done_click = NULL,
   session = NULL
 )
 }
@@ -84,6 +119,63 @@ button as an x icon, it no longer has text.}
 
 \item{done_btn_text}{Text on the final button.}
 
+\item{show_progress}{Whether to show tour progress text in the popover
+(e.g.: \code{"2 of 5"}).}
+
+\item{progress_text}{Template for the progress text, e.g.:
+\code{"{{current}} of {{total}}"}.}
+
+\item{progress_style}{Progress indicator style: \code{"text"} (the
+default, e.g.: \code{"2 of 5"}), \code{"bar"}, or \code{"dots"}, themable with
+\code{\link[=cicerone_theme]{cicerone_theme()}}. \code{"bar"}/\code{"dots"} force \code{show_progress} on
+regardless of the \code{show_progress} argument. At the step level, \code{NULL}
+inherits the tour's style.}
+
+\item{on_popover_render}{JavaScript function called when the popover
+is rendered, receives \verb{(popover, opts)}.}
+
+\item{on_next}{A JavaScript function to run when the next button is
+clicked. Unless the function returns \code{false} the tour then advances.
+This is effectively a string that is evaluated JavaScript-side.}
+
+\item{on_prev}{A JavaScript function to run when the previous button
+is clicked. Unless the function returns \code{false} the tour then moves
+back.}
+
+\item{on_close}{A JavaScript function to run when the close button is
+clicked.}
+
+\item{on_done}{A JavaScript function to run when the done button is
+clicked, on the last step.}
+
+\item{disable_active_interaction}{Whether to disable interaction with
+the highlighted element.}
+
+\item{advance_on_click}{Whether clicking the highlighted element
+advances the tour.}
+
+\item{skip_missing_element}{Whether to skip steps whose element is
+not found on the page.}
+
+\item{wait_for_element}{Milliseconds to wait for a step's element to
+appear before giving up.}
+
+\item{advance_on}{Advance the tour when a DOM event fires on any
+element on the page, not only the highlighted one (see
+\code{advance_on_click} for that). A selector string (the event defaults
+to \code{"click"}), or \code{list(el = "...", event = "...")}.}
+
+\item{advance_when}{A JavaScript predicate \verb{(step, opts) => boolean}.
+Evaluated once when the step is highlighted, then again on every DOM
+mutation and \code{input}/\code{change} event until it returns \code{true}, at which
+point the tour advances. For a server-driven alternative, use
+\code{observeEvent(input$x, tour$move_forward())}. On the tour's last step,
+either mechanism completes the tour (\verb{\{id\}_cicerone_ended$reason} is
+\code{"done"}), as does \verb{$move_forward()}.}
+
+\item{data}{A named list of arbitrary data attached to the step,
+available to JavaScript callbacks as \code{step.data}.}
+
 \item{session}{A valid Shiny session if \code{NULL}
 the function attempts to get the session with
 \code{\link[shiny:getDefaultReactiveDomain]{shiny::getDefaultReactiveDomain()}}.}
@@ -114,6 +206,9 @@ handler.}
 
 \item{smooth_scroll}{Whether to smooth scroll to the highlighted element.}
 
+\item{allow_scroll}{Whether the page can be scrolled while a tour is
+active, set to \code{FALSE} to lock body scroll.}
+
 \item{stage_padding}{Distance between the highlighted element and the
 edge of the cutout, in pixels.}
 
@@ -123,6 +218,19 @@ edge of the cutout, in pixels.}
 
 \item{popover_offset}{Distance between popover and highlighted
 element, in pixels.}
+
+\item{duration}{Animation duration in milliseconds.}
+
+\item{on_highlight_started, on_highlighted, on_deselected}{JavaScript
+functions called around highlighting of every step.}
+
+\item{on_destroy_started, on_destroyed}{JavaScript functions called
+around tour destruction.}
+
+\item{on_next_click, on_prev_click, on_close_click, on_done_click}{JavaScript functions called on button clicks. When \code{on_next_click}
+or \code{on_prev_click} is set, cicerone still fires the corresponding
+Shiny event and advances the tour, unless the callback returns
+\code{false}.}
 }
 \description{
 Initialise and highlight an element.

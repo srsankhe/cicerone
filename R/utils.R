@@ -2,6 +2,30 @@ generate_id <- function() {
   paste0(sample(letters, 26), collapse = "")
 }
 
+# WP5: last-shown timestamp for a persisted tour record, ISO-8601 UTC
+# ("Z" suffix), e.g. "2026-09-06T12:34:56Z".
+iso_now <- function() {
+  strftime(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
+}
+
+# valid `progress_style` values, shared by `Cicerone$new()`/`initialise()`
+# (config-level, always resolved to one of these via `match.arg()`) and
+# `step()`/`highlight()` (step-level, where `NULL` means "inherit the
+# tour's style" and is validated separately by the caller)
+progress_styles <- c("text", "bar", "dots")
+
+# "bar"/"dots" progress needs driver.js's own `showProgress` flag on: the
+# bar/dots CSS in custom.css repurposes the `.driver-popover-progress-
+# text` node, which driver.js only *shows* (vs. `display: none`) when
+# `showProgress` is true. Force it on whenever `progress_style` asks for
+# a bar or dots, regardless of what the caller passed for
+# `show_progress`, rather than silently no-op the feature.
+resolve_show_progress <- function(progress_style, show_progress) {
+  if (identical(progress_style, "bar") || identical(progress_style, "dots"))
+    return(TRUE)
+  show_progress
+}
+
 prep_element <- function (el) {
   if (!grepl("(?:^\\.)|(?:^\\#)|<|>|\\[|\\s", el)) paste0("#", el) else el
 }
@@ -91,30 +115,44 @@ deprecated_arg <- function(value, arg, replacement = NULL) {
 
 # build the driver.js 1.x config object shared by
 # Cicerone$new() and initialise()
+#
+# --- WP4 begin: NULL defaults, shared with $set_config() ---
+# Every formal below defaults to NULL, not driver.js's real default
+# (TRUE/"close"/10/etc.). `Cicerone$new()`/`initialise()` always resolve
+# and pass an explicit value for every one of these before calling
+# build_config() (see their bodies), so this never changes what those two
+# call sites send. `Cicerone$set_config()` is the reason for the change:
+# it calls build_config() with only the arguments the caller supplied to
+# `$set_config()`, relying on every *unsupplied* one defaulting to NULL so
+# `drop_nulls()` below omits it from the outgoing message, instead of
+# resending driver.js's default and clobbering whatever that key is
+# currently live-set to.
+# --- WP4 end ---
 build_config <- function(
-  animate = TRUE,
+  animate = NULL,
   overlay_color = NULL,
-  overlay_opacity = .75,
-  smooth_scroll = FALSE,
-  allow_close = TRUE,
-  allow_scroll = TRUE,
-  overlay_click_behavior = "close",
-  stage_padding = 10,
+  overlay_opacity = NULL,
+  smooth_scroll = NULL,
+  allow_close = NULL,
+  allow_scroll = NULL,
+  overlay_click_behavior = NULL,
+  stage_padding = NULL,
   stage_radius = NULL,
-  allow_keyboard_control = TRUE,
-  disable_active_interaction = FALSE,
+  allow_keyboard_control = NULL,
+  disable_active_interaction = NULL,
   advance_on_click = NULL,
   skip_missing_element = NULL,
   wait_for_element = NULL,
   popover_class = NULL,
   popover_offset = NULL,
-  show_buttons = TRUE,
+  show_buttons = NULL,
   disable_buttons = NULL,
-  show_progress = FALSE,
+  show_progress = NULL,
   progress_text = NULL,
-  next_btn_text = "Next",
-  prev_btn_text = "Previous",
-  done_btn_text = "Done",
+  progress_style = NULL,
+  next_btn_text = NULL,
+  prev_btn_text = NULL,
+  done_btn_text = NULL,
   duration = NULL,
   on_popover_render = NULL,
   on_highlight_started = NULL,
@@ -125,7 +163,11 @@ build_config <- function(
   on_next_click = NULL,
   on_prev_click = NULL,
   on_close_click = NULL,
-  on_done_click = NULL
+  on_done_click = NULL,
+  # --- WP7 begin: exclusive / wait_for_visible ---
+  exclusive = NULL,
+  wait_for_visible = NULL
+  # --- WP7 end ---
 ) {
   drop_nulls(list(
     animate = animate,
@@ -148,6 +190,10 @@ build_config <- function(
     disableButtons = normalize_buttons(disable_buttons),
     showProgress = show_progress,
     progressText = progress_text,
+    # "text" is today's behaviour and is never sent, so a tour that never
+    # touches `progress_style` gets a byte-identical config payload to
+    # pre-2.1.0 cicerone
+    progressStyle = if (!identical(progress_style, "text")) progress_style,
     nextBtnText = next_btn_text,
     prevBtnText = prev_btn_text,
     doneBtnText = done_btn_text,
@@ -161,7 +207,15 @@ build_config <- function(
     onNextClick = on_next_click,
     onPrevClick = on_prev_click,
     onCloseClick = on_close_click,
-    onDoneClick = on_done_click
+    onDoneClick = on_done_click,
+    # --- WP7 begin: exclusive / wait_for_visible ---
+    # Not driver.js keys: read by cicerone's own `cicerone-start` handler
+    # (srcjs/exts/tour.js), passed straight through `Driver(config)`'s
+    # spread-into-defaults, which preserves unrecognised keys untouched
+    # (verified in driver.js.mjs's `ne()`/`configure()`).
+    exclusive = exclusive,
+    waitForVisible = wait_for_visible
+    # --- WP7 end ---
   ))
 }
 
@@ -177,6 +231,7 @@ build_popover <- function(
   disable_buttons = NULL,
   show_progress = NULL,
   progress_text = NULL,
+  progress_style = NULL,
   next_btn_text = NULL,
   prev_btn_text = NULL,
   done_btn_text = NULL,
@@ -203,6 +258,10 @@ build_popover <- function(
     disableButtons = normalize_buttons(disable_buttons),
     showProgress = show_progress,
     progressText = progress_text,
+    # unlike the config-level field, a step-level override is sent
+    # verbatim (including "text"), since it is what tells JS to override
+    # the tour's default for this one step rather than inherit it
+    progressStyle = progress_style,
     nextBtnText = next_btn_text,
     prevBtnText = prev_btn_text,
     doneBtnText = done_btn_text,
@@ -213,3 +272,62 @@ build_popover <- function(
     onDoneClick = on_done_click
   ))
 }
+
+# normalise step(advance_on=)/highlight(advance_on=) to the shape the JS
+# side expects: {element, event}. Accepts a selector string (event
+# defaults to "click"), or list(el = "...", event = "...").
+normalize_advance_on <- function(x) {
+  if (is.null(x)) return(NULL)
+
+  if (is.character(x)) {
+    assertthat::assert_that(
+      assertthat::is.string(x),
+      msg = "`advance_on` must be a single selector string"
+    )
+    x <- list(el = x)
+  }
+
+  assertthat::assert_that(
+    is.list(x) && !is.null(x$el),
+    msg = "`advance_on` must be a selector string, or list(el = ..., event = ...)"
+  )
+  assertthat::assert_that(
+    assertthat::is.string(x$el),
+    msg = "`advance_on`'s `el` must be a single character string"
+  )
+
+  event <- x$event %||% "click"
+  assertthat::assert_that(
+    assertthat::is.string(event),
+    msg = "`advance_on`'s `event` must be a single character string"
+  )
+
+  list(element = prep_element(x$el), event = event)
+}
+
+# validate step(advance_when=)/highlight(advance_when=): a single string
+# of JavaScript, or NULL. Passed through unchanged -- JS evaluates it.
+validate_advance_when <- function(x) {
+  if (!is.null(x)) {
+    assertthat::assert_that(
+      assertthat::is.string(x),
+      msg = "`advance_when` must be a single character string of JavaScript"
+    )
+  }
+  x
+}
+
+# --- WP4 begin: show_if ---
+# validate step(show_if=): a single string of JavaScript, or NULL. Passed
+# through unchanged -- JS evaluates it as `(step, opts) => boolean` against
+# `allSteps[id]` on every `cicerone-start` (see srcjs/exts/tour.js).
+validate_show_if <- function(x) {
+  if (!is.null(x)) {
+    assertthat::assert_that(
+      assertthat::is.string(x),
+      msg = "`show_if` must be a single character string of JavaScript"
+    )
+  }
+  x
+}
+# --- WP4 end ---
