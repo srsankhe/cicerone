@@ -264,3 +264,69 @@ test_that("functional API maps arguments", {
   expect_equal(s$msgs[[2]]$message$popover$side, "bottom")
   expect_equal(s$msgs[[2]]$message$popover$align, "center")
 })
+
+test_that("advance_on: string and list forms normalise to the same payload", {
+  s <- make_session()
+  g <- Cicerone$new(id = "adv1")$
+    step("el1", title = "x", advance_on = "#trigger")$
+    step("el2", title = "y", advance_on = list(el = "#trigger", event = "input"))
+  g$init(session = s)
+
+  st <- s$msgs[[1]]$message$steps
+  expect_equal(st[[1]]$advanceOn, list(element = "#trigger", event = "click"))
+  expect_equal(st[[2]]$advanceOn, list(element = "#trigger", event = "input"))
+})
+
+test_that("advance_on: list(el=) without event defaults to click", {
+  g <- Cicerone$new()$step("el1", title = "x", advance_on = list(el = "trigger"))
+  expect_equal(
+    g$get_steps()[[1]]$advanceOn,
+    list(element = "#trigger", event = "click")
+  )
+})
+
+test_that("advance_on: a non-string event errors", {
+  expect_error(
+    Cicerone$new()$step(
+      "el1", title = "x", advance_on = list(el = "#trigger", event = 1)
+    )
+  )
+  expect_error(
+    Cicerone$new()$step("el1", title = "x", advance_on = list(event = "click"))
+  )
+})
+
+test_that("advance_when lands as advanceWhen", {
+  g <- Cicerone$new()$step(
+    "el1", title = "x",
+    advance_when = "() => document.querySelector('#x').checked"
+  )
+  expect_equal(
+    g$get_steps()[[1]]$advanceWhen,
+    "() => document.querySelector('#x').checked"
+  )
+})
+
+test_that("advance_when: a non-string predicate errors", {
+  expect_error(Cicerone$new()$step("el1", title = "x", advance_when = TRUE))
+})
+
+test_that("highlight(advance_on=) payload", {
+  s <- make_session()
+  highlight(
+    "plot", "man_adv", advance_on = list(el = "#trigger", event = "input"),
+    session = s
+  )
+  expect_equal(
+    s$msgs[[1]]$message$advanceOn,
+    list(element = "#trigger", event = "input")
+  )
+})
+
+test_that("highlight(advance_when=) payload", {
+  s <- make_session()
+  highlight(
+    "plot", "man_adv2", advance_when = "() => true", session = s
+  )
+  expect_equal(s$msgs[[1]]$message$advanceWhen, "() => true")
+})

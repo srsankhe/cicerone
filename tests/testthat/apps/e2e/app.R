@@ -91,6 +91,29 @@ hints_button <- Hints$
     on_button_click = "function(){}"
   )
 
+# WP6: a step advances on a named event on any element (not just the
+# highlighted one), and a step advances when a JavaScript predicate turns
+# true, re-evaluated as the page changes.
+guide_adv <- Cicerone$
+  new(id = "e2e_adv")$
+  step(
+    el = "el1",
+    title = "Advance-on step",
+    advance_on = "#trigger"
+  )$
+  step(
+    el = "el2",
+    title = "Plain step"
+  )$
+  step(
+    el = "el3",
+    title = "Advance-when step",
+    advance_when = paste0(
+      "() => document.querySelector('#adv_name').value.length > 0 && ",
+      "document.querySelector('#adv_parsed').checked"
+    )
+  )
+
 ui <- fluidPage(
   use_cicerone(),
   tags$div(id = "el1", "Element 1"),
@@ -118,7 +141,11 @@ ui <- fluidPage(
   verbatimTextOutput("out_reset_global"),
   verbatimTextOutput("out_hint_opened"),
   verbatimTextOutput("out_hint_dismissed"),
-  verbatimTextOutput("out_hint_button")
+  verbatimTextOutput("out_hint_button"),
+  textInput("adv_name", "Name", value = ""),
+  checkboxInput("adv_parsed", "Parsed", value = FALSE),
+  actionButton("btn_start_adv", "Start advance tour"),
+  actionButton("btn_reset_adv", "Reset advance tour")
 )
 
 server <- function(input, output, session) {
@@ -130,6 +157,7 @@ server <- function(input, output, session) {
   guide_parity$init()
   guide_close_destroy$init()
   hints_button$init()
+  guide_adv$init()
 
   observeEvent(input$btn_start, guide$start())
   observeEvent(input$btn_reset, guide$reset())
@@ -139,6 +167,8 @@ server <- function(input, output, session) {
   observeEvent(input$btn_start_parity, guide_parity$start())
   observeEvent(input$btn_start_close_destroy, guide_close_destroy$start())
   observeEvent(input$btn_show_hints_button, hints_button$show())
+  observeEvent(input$btn_start_adv, guide_adv$start())
+  observeEvent(input$btn_reset_adv, guide_adv$reset())
 
   output$out_state <- renderPrint(input[["e2e_cicerone_state"]])
   output$out_next <- renderPrint(input[["e2e_cicerone_next"]])
@@ -164,9 +194,24 @@ server <- function(input, output, session) {
     close_destroy_ended_count(close_destroy_ended_count() + 1)
   })
 
+  # WP6: accumulate the `e2e_adv` tour's `_event` stream (type and element)
+  # server-side. A live-value poll (as `app$wait_for_value()` does) can
+  # only ever observe the latest value of an input, and `advance_on`
+  # deliberately emits `event:"advance"` immediately before a `moveNext()`
+  # that itself emits `event:"highlighted"` a frame later -- a client-side
+  # poll can race straight past the first value. Exported (not a
+  # verbatimTextOutput) so the test can read the exact sequence.
+  adv_event_log <- reactiveVal(character(0))
+  observeEvent(input$e2e_adv_cicerone_event, {
+    ev <- input$e2e_adv_cicerone_event
+    entry <- paste0(ev$type, ":", if (is.null(ev$element)) "" else ev$element)
+    adv_event_log(c(adv_event_log(), entry))
+  })
+
   session$exportTestValues(
     event_log = paste(event_log(), collapse = ","),
-    close_destroy_ended_count = close_destroy_ended_count()
+    close_destroy_ended_count = close_destroy_ended_count(),
+    adv_event_log = paste(adv_event_log(), collapse = ",")
   )
 }
 
