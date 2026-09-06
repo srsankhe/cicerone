@@ -65,6 +65,8 @@
   `data`.
 - `Hints$hint()` gains `on_popover_render`, mapped to the hint popover's
   `onPopoverRender`.
+- New read-only getters: `Cicerone$get_id()`, `Cicerone$get_steps()`,
+  `Hints$get_id()`, `Hints$get_hints()`.
 
 # cicerone 2.0.0
 

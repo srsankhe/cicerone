@@ -241,6 +241,15 @@ test_that("is_id is deprecated", {
   )
 })
 
+test_that("get_id and get_steps return what init sends", {
+  s <- make_session()
+  g <- Cicerone$new(id = "g8")$step("plot", title = "x")$step("table", title = "y")
+  g$init(session = s)
+
+  expect_equal(g$get_id(), "g8")
+  expect_equal(g$get_steps(), s$msgs[[1]]$message$steps)
+})
+
 test_that("functional API maps arguments", {
   s <- make_session()
 

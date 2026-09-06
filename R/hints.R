@@ -266,6 +266,16 @@ Hints <- R6::R6Class(
         session <- shiny::getDefaultReactiveDomain()
       session$sendCustomMessage("cicerone-hints-refresh", list(id = private$id))
       invisible(self)
+    },
+#' @details
+#' Retrieve this set of hints' unique identifier.
+    get_id = function(){
+      private$id
+    },
+#' @details
+#' Retrieve the list of hints as they will be sent to driver.js.
+    get_hints = function(){
+      private$hints
     }
   ),
   private = list(

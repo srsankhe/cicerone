@@ -59,6 +59,8 @@ index, possibly \code{undefined}). For example:
     \item \href{#method-Cicerone-get_previous}{\code{Cicerone$get_previous()}}
     \item \href{#method-Cicerone-get_started}{\code{Cicerone$get_started()}}
     \item \href{#method-Cicerone-get_ended}{\code{Cicerone$get_ended()}}
+    \item \href{#method-Cicerone-get_id}{\code{Cicerone$get_id()}}
+    \item \href{#method-Cicerone-get_steps}{\code{Cicerone$get_steps()}}
     \item \href{#method-Cicerone-clone}{\code{Cicerone$clone()}}
   }
 }
@@ -691,6 +693,34 @@ attempts to get the session with \code{\link[shiny:getDefaultReactiveDomain]{shi
 with \code{reason} (one of \code{"done"}, \code{"close"}, \code{"programmatic"},
 \code{"dismissed"}), \code{completed} (\code{TRUE} when \code{reason} is \code{"done"}),
 \code{index} and \code{total_steps}. See \link{cicerone_inputs}.
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-Cicerone-get_id"></a>}}
+\if{latex}{\out{\hypertarget{method-Cicerone-get_id}{}}}
+\subsection{\code{Cicerone$get_id()}}{
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{Cicerone$get_id()}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Details}{
+    Retrieve this tour's unique identifier.
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-Cicerone-get_steps"></a>}}
+\if{latex}{\out{\hypertarget{method-Cicerone-get_steps}{}}}
+\subsection{\code{Cicerone$get_steps()}}{
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{Cicerone$get_steps()}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Details}{
+    Retrieve the list of steps as they will be sent to driver.js.
   }
 }
 

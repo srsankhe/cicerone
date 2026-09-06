@@ -551,6 +551,16 @@ Cicerone <- R6::R6Class(
 
       grab <- paste0(private$id, "_cicerone_ended")
       session$input[[grab]]
+    },
+#' @details
+#' Retrieve this tour's unique identifier.
+    get_id = function(){
+      private$id
+    },
+#' @details
+#' Retrieve the list of steps as they will be sent to driver.js.
+    get_steps = function(){
+      private$steps
     }
   ),
   private = list(

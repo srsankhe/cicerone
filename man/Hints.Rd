@@ -39,6 +39,8 @@ Each carries a list with the hint's \code{id} and \code{element}.
     \item \href{#method-Hints-dismiss}{\code{Hints$dismiss()}}
     \item \href{#method-Hints-restore}{\code{Hints$restore()}}
     \item \href{#method-Hints-refresh}{\code{Hints$refresh()}}
+    \item \href{#method-Hints-get_id}{\code{Hints$get_id()}}
+    \item \href{#method-Hints-get_hints}{\code{Hints$get_hints()}}
     \item \href{#method-Hints-clone}{\code{Hints$clone()}}
   }
 }
@@ -338,6 +340,34 @@ attempts to get the session with \code{\link[shiny:getDefaultReactiveDomain]{shi
   }
   \subsection{Details}{
     Refresh beacon and popover positions.
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-Hints-get_id"></a>}}
+\if{latex}{\out{\hypertarget{method-Hints-get_id}{}}}
+\subsection{\code{Hints$get_id()}}{
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{Hints$get_id()}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Details}{
+    Retrieve this set of hints' unique identifier.
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-Hints-get_hints"></a>}}
+\if{latex}{\out{\hypertarget{method-Hints-get_hints}{}}}
+\subsection{\code{Hints$get_hints()}}{
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{Hints$get_hints()}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Details}{
+    Retrieve the list of hints as they will be sent to driver.js.
   }
 }
 
