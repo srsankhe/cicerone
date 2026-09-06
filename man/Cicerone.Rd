@@ -34,8 +34,62 @@ index, possibly \code{undefined}). For example:
 \code{"function(element, step, opts) { console.log(step); }"}.
 }
 
+\section{Persistence}{
+
+With \code{persist} set, cicerone tracks one record per tour: \code{list(v, status, idx, n, t)} -- \code{status} (\code{"in_progress"}, \code{"completed"}, or
+\code{"dismissed"}), \code{idx} (the last 0-based step index shown), \code{n} (how
+many times \verb{$start()} has run), and \code{t} (an ISO-8601 UTC timestamp).
+Reading and writing it drives three behaviours, for either backend:
+\itemize{
+\item \verb{\{id\}_cicerone_seen} fires once at \verb{$init()}, with the record (or
+\code{NULL} if there is none) -- see \link{cicerone_inputs}.
+\item \verb{$init(run_once = TRUE)} also checks the record: if \code{status} is
+already \code{"completed"}, the next \verb{$start()} does not drive the
+tour, and \verb{\{id\}_cicerone_ended} fires with \code{reason = "suppressed"}
+instead.
+\item \verb{$start(resume = TRUE)} begins at the record's \code{idx} instead of the
+requested \code{step}, when \code{status} is \code{"in_progress"} (i.e. the tour
+was dismissed partway through, not completed).
+}
+
+\code{persist = "cookie"} needs nothing further: the browser cookie is
+written and read by cicerone's own JavaScript. Read it server-side
+with \code{\link[=tour_state]{tour_state()}} (e.g. to decide what to render before the
+\verb{_seen} input arrives).
+
+A \code{list(read =, write =, forget =)} adapter instead stores the
+record wherever you like; cicerone calls it, not a cookie. A minimal
+adapter backed by \code{session$userData} (per-session only; use a
+database or a keyed file for something that survives a full app
+restart):
+
+\if{html}{\out{<div class="sourceCode">}}\preformatted{userdata_adapter <- function(session) \{
+  list(
+    read = function(id) session$userData$cicerone_tours[[id]],
+    write = function(id, record) \{
+      if (is.null(session$userData$cicerone_tours))
+        session$userData$cicerone_tours <- list()
+      session$userData$cicerone_tours[[id]] <- record
+    \},
+    forget = function(id) \{
+      session$userData$cicerone_tours[[id]] <- NULL
+    \}
+  )
+\}
+
+tour <- Cicerone$new(id = "onboarding", persist = userdata_adapter(session))
+}\if{html}{\out{</div>}}
+
+A database-backed adapter follows the same shape, keyed additionally
+by user: \code{read <- function(id) db_get(user_id, id)}, \code{write <- function(id, record) db_set(user_id, id, record)}, \code{forget <- function(id) db_delete(user_id, id)}.
+
+\code{read()}/\code{write()}/\code{forget()} run in the calling session. An error
+inside one is caught, reported with \code{warning()}, and does not stop
+the tour.
+}
+
 \seealso{
-\link{cicerone_inputs}
+\link{cicerone_inputs}, \code{\link[=tour_state]{tour_state()}}
 }
 \section{Methods}{
 \subsection{Public methods}{
@@ -45,6 +99,7 @@ index, possibly \code{undefined}). For example:
     \item \href{#method-Cicerone-init}{\code{Cicerone$init()}}
     \item \href{#method-Cicerone-reset}{\code{Cicerone$reset()}}
     \item \href{#method-Cicerone-destroy}{\code{Cicerone$destroy()}}
+    \item \href{#method-Cicerone-forget}{\code{Cicerone$forget()}}
     \item \href{#method-Cicerone-start}{\code{Cicerone$start()}}
     \item \href{#method-Cicerone-move_forward}{\code{Cicerone$move_forward()}}
     \item \href{#method-Cicerone-move_backward}{\code{Cicerone$move_backward()}}
@@ -117,7 +172,9 @@ index, possibly \code{undefined}). For example:
   on_close_click = NULL,
   on_done_click = NULL,
   exclusive = TRUE,
-  wait_for_visible = NULL
+  wait_for_visible = NULL,
+  persist = NULL,
+  version = 1L
 )}
     \if{html}{\out{</div>}}
   }
@@ -214,6 +271,18 @@ hooks that do not return \code{false}); a move made directly through
 unless \code{skip_missing_element} applies to that step, in which case it
 is skipped. Also settable per step, see the \code{wait_for_visible}
 argument of \code{step()} below, which overrides this default.}
+      \item{\code{persist}}{Where to persist this tour's progress across page
+loads/reconnects: \code{NULL} (the default, no persistence), \code{"cookie"}
+(cicerone manages a cookie for you), or \verb{list(read = function(id), write = function(id, record), forget = function(id))} to store the
+record yourself (a session-scoped list, a database, ...). All three
+functions are required. \code{persist} requires a stable, explicitly
+passed \code{id} -- an auto-generated one is different every time and can
+never be looked up again, so cicerone errors if you combine the two.
+See the Persistence section below.}
+      \item{\code{version}}{An integer you control, bumped whenever a persisted
+record from an earlier version of this tour should no longer count.
+A stored record whose \code{v} does not match \code{version} reads as if there
+were no record at all (cicerone does not migrate old records).}
     }
     \if{html}{\out{</div>}}
   }
@@ -443,12 +512,37 @@ attempts to get the session with \code{\link[shiny:getDefaultReactiveDomain]{shi
 }
 
 \if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-Cicerone-forget"></a>}}
+\if{latex}{\out{\hypertarget{method-Cicerone-forget}{}}}
+\subsection{\code{Cicerone$forget()}}{
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{Cicerone$forget(session = NULL)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{session}}{A valid Shiny session if \code{NULL} the function
+attempts to get the session with \code{\link[shiny:getDefaultReactiveDomain]{shiny::getDefaultReactiveDomain()}}.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Details}{
+    Forget this tour's persisted record (see the \code{persist} argument of
+\verb{$new()}). Removes it from the active backend (the cookie, or your
+adapter's \code{forget(id)}) and fires \verb{\{id\}_cicerone_seen} with \code{NULL}.
+A no-op if \code{persist} was never set.
+  }
+}
+
+\if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-Cicerone-start"></a>}}
 \if{latex}{\out{\hypertarget{method-Cicerone-start}{}}}
 \subsection{\code{Cicerone$start()}}{
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
-    \preformatted{Cicerone$start(step = 1, session = NULL)}
+    \preformatted{Cicerone$start(step = 1, session = NULL, resume = FALSE)}
     \if{html}{\out{</div>}}
   }
   \subsection{Arguments}{
@@ -457,6 +551,11 @@ attempts to get the session with \code{\link[shiny:getDefaultReactiveDomain]{shi
       \item{\code{step}}{The step index at which to start.}
       \item{\code{session}}{A valid Shiny session if \code{NULL} the function
 attempts to get the session with \code{\link[shiny:getDefaultReactiveDomain]{shiny::getDefaultReactiveDomain()}}.}
+      \item{\code{resume}}{When persistence is on (see the \code{persist} argument of
+\verb{$new()}) and the persisted record's \code{status} is \code{"in_progress"},
+start at its \code{idx} instead of \code{step}. Ignored otherwise (including
+when there is no persisted record, or its \code{status} is \code{"completed"}
+or \code{"dismissed"}).}
     }
     \if{html}{\out{</div>}}
   }
@@ -762,8 +861,9 @@ attempts to get the session with \code{\link[shiny:getDefaultReactiveDomain]{shi
   \subsection{Details}{
     Retrieve data that was fired when the tour ended: a list
 with \code{reason} (one of \code{"done"}, \code{"close"}, \code{"programmatic"},
-\code{"dismissed"}), \code{completed} (\code{TRUE} when \code{reason} is \code{"done"}),
-\code{index} and \code{total_steps}. See \link{cicerone_inputs}.
+\code{"superseded"}, \code{"suppressed"}, \code{"dismissed"}), \code{completed} (\code{TRUE}
+when \code{reason} is \code{"done"}), \code{index} and \code{total_steps}. See
+\link{cicerone_inputs}.
   }
 }
 

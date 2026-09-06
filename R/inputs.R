@@ -18,14 +18,17 @@
 #' | `{id}_cicerone_event` | yes | `list(type, index, element, total_steps, time)` | every lifecycle event below, in addition to its specific input |
 #' | `{id}_cicerone_reset` | yes | `TRUE` | the tour is destroyed, for any reason (kept for 1.x compatibility; use `_ended` for the reason) |
 #' | `cicerone_reset` | yes | `TRUE` | any tour on the page is destroyed (not namespaced by `id`) |
+#' | `{id}_cicerone_seen` | yes | the persisted record (`list(v, status, idx, n, t)`), or `NULL` | `$init()`, when `persist` is set (see [Cicerone]); not fired otherwise |
 #'
 #' `reason` in `_ended` is one of `"done"` (the Done button on the last
 #' step), `"close"` (the close button), `"programmatic"` (`$reset()`/
 #' `$destroy()` called from the server, or [destroy_all()]),
 #' `"superseded"` (another tour started with `exclusive = TRUE` while
-#' this one was active, see [Cicerone]), or `"dismissed"` (Escape, an
-#' overlay click, or anything else). `completed` is `TRUE` exactly when
-#' `reason` is `"done"`.
+#' this one was active, see [Cicerone]), `"suppressed"` (`persist` is
+#' set, `$init(run_once = TRUE)`, and the persisted record's `status` is
+#' already `"completed"`: `$start()` does not drive the tour), or
+#' `"dismissed"` (Escape, an overlay click, or anything else).
+#' `completed` is `TRUE` exactly when `reason` is `"done"`.
 #'
 #' `type` in `_event` is one of `"started"`, `"highlighted"`, `"next"`,
 #' `"previous"`, `"done"`, `"close"`, `"ended"`, `"hint_opened"`,
@@ -68,7 +71,7 @@
 #' `getBoundingClientRect()`; `elapsed` is milliseconds from the call to
 #' resolution.
 #'
-#' @seealso [Cicerone], [Hints], [destroy_all()], [wait_for_element()]
+#' @seealso [Cicerone], [Hints], [destroy_all()], [wait_for_element()], [tour_state()]
 #'
 #' @name cicerone_inputs
 NULL

@@ -24,7 +24,7 @@
 #' index, possibly `undefined`). For example:
 #' `"function(element, step, opts) { console.log(step); }"`.
 #'
-#' @seealso [cicerone_inputs]
+#' @seealso [cicerone_inputs], [tour_state()]
 #'
 #' @export
 Cicerone <- R6::R6Class(
@@ -123,6 +123,71 @@ Cicerone <- R6::R6Class(
 #' unless `skip_missing_element` applies to that step, in which case it
 #' is skipped. Also settable per step, see the `wait_for_visible`
 #' argument of `step()` below, which overrides this default.
+#' @param persist Where to persist this tour's progress across page
+#' loads/reconnects: `NULL` (the default, no persistence), `"cookie"`
+#' (cicerone manages a cookie for you), or `list(read = function(id),
+#' write = function(id, record), forget = function(id))` to store the
+#' record yourself (a session-scoped list, a database, ...). All three
+#' functions are required. `persist` requires a stable, explicitly
+#' passed `id` -- an auto-generated one is different every time and can
+#' never be looked up again, so cicerone errors if you combine the two.
+#' See the Persistence section below.
+#' @param version An integer you control, bumped whenever a persisted
+#' record from an earlier version of this tour should no longer count.
+#' A stored record whose `v` does not match `version` reads as if there
+#' were no record at all (cicerone does not migrate old records).
+#'
+#' @section Persistence:
+#' With `persist` set, cicerone tracks one record per tour: `list(v,
+#' status, idx, n, t)` -- `status` (`"in_progress"`, `"completed"`, or
+#' `"dismissed"`), `idx` (the last 0-based step index shown), `n` (how
+#' many times `$start()` has run), and `t` (an ISO-8601 UTC timestamp).
+#' Reading and writing it drives three behaviours, for either backend:
+#' * `{id}_cicerone_seen` fires once at `$init()`, with the record (or
+#'   `NULL` if there is none) -- see [cicerone_inputs].
+#' * `$init(run_once = TRUE)` also checks the record: if `status` is
+#'   already `"completed"`, the next `$start()` does not drive the
+#'   tour, and `{id}_cicerone_ended` fires with `reason = "suppressed"`
+#'   instead.
+#' * `$start(resume = TRUE)` begins at the record's `idx` instead of the
+#'   requested `step`, when `status` is `"in_progress"` (i.e. the tour
+#'   was dismissed partway through, not completed).
+#'
+#' `persist = "cookie"` needs nothing further: the browser cookie is
+#' written and read by cicerone's own JavaScript. Read it server-side
+#' with [tour_state()] (e.g. to decide what to render before the
+#' `_seen` input arrives).
+#'
+#' A `list(read =, write =, forget =)` adapter instead stores the
+#' record wherever you like; cicerone calls it, not a cookie. A minimal
+#' adapter backed by `session$userData` (per-session only; use a
+#' database or a keyed file for something that survives a full app
+#' restart):
+#' ```
+#' userdata_adapter <- function(session) {
+#'   list(
+#'     read = function(id) session$userData$cicerone_tours[[id]],
+#'     write = function(id, record) {
+#'       if (is.null(session$userData$cicerone_tours))
+#'         session$userData$cicerone_tours <- list()
+#'       session$userData$cicerone_tours[[id]] <- record
+#'     },
+#'     forget = function(id) {
+#'       session$userData$cicerone_tours[[id]] <- NULL
+#'     }
+#'   )
+#' }
+#'
+#' tour <- Cicerone$new(id = "onboarding", persist = userdata_adapter(session))
+#' ```
+#' A database-backed adapter follows the same shape, keyed additionally
+#' by user: `read <- function(id) db_get(user_id, id)`, `write <-
+#' function(id, record) db_set(user_id, id, record)`, `forget <-
+#' function(id) db_delete(user_id, id)`.
+#'
+#' `read()`/`write()`/`forget()` run in the calling session. An error
+#' inside one is caught, reported with `warning()`, and does not stop
+#' the tour.
 #'
 #' @return A Cicerone object.
   public = list(
@@ -148,11 +213,36 @@ Cicerone <- R6::R6Class(
       on_destroy_started = NULL, on_destroyed = NULL,
       on_next_click = NULL, on_prev_click = NULL,
       on_close_click = NULL, on_done_click = NULL,
-      exclusive = TRUE, wait_for_visible = NULL
+      exclusive = TRUE, wait_for_visible = NULL,
+      # --- WP5 begin: persistence ---
+      persist = NULL, version = 1L
+      # --- WP5 end ---
     ) {
+
+      # --- WP5 begin: persistence validation ---
+      # captured before `id` is possibly auto-generated below: persistence
+      # needs a stable id across page loads/reconnects, an auto-generated
+      # one is different every time and can never be looked up again
+      auto_id <- is.null(id)
+
+      assertthat::assert_that(persist_ok(persist))
+      assertthat::assert_that(
+        assertthat::is.count(version),
+        msg = "`version` must be a single positive whole number"
+      )
+      # --- WP5 end ---
 
       if(is.null(id))
         id <- generate_id()
+
+      # --- WP5 begin: persistence validation ---
+      if(!is.null(persist) && auto_id)
+        stop(
+          "`persist` needs a stable `id`: pass `id = ` explicitly instead ",
+          "of relying on an auto-generated one.",
+          call. = FALSE
+        )
+      # --- WP5 end ---
 
       # deprecated arguments removed from driver.js 1.x
       deprecated_arg(close_btn_text, "close_btn_text")
@@ -214,6 +304,12 @@ Cicerone <- R6::R6Class(
       private$globals$id <- id
       private$id <- id
       private$mathjax <- mathjax
+
+      # --- WP5 begin: persistence ---
+      private$persist <- persist
+      private$persist_mode <- if(is.null(persist)) NULL else if(identical(persist, "cookie")) "cookie" else "adapter"
+      private$version <- version
+      # --- WP5 end ---
 
       invisible(self)
     },
@@ -414,15 +510,56 @@ Cicerone <- R6::R6Class(
       if(is.null(session))
         session <- shiny::getDefaultReactiveDomain()
 
+      private$run_once <- run_once
+
+      # --- WP5 begin: read the adapter-backed record, wire up writes ---
+      # the cookie backend needs none of this: its record lives in
+      # document.cookie, read and written by persist.js, client-side
+      record <- NULL
+      if(identical(private$persist_mode, "adapter")) {
+        record <- tryCatch(
+          private$persist$read(private$id),
+          error = function(e) {
+            warning(
+              "cicerone: persist$read() failed for '", private$id, "': ",
+              conditionMessage(e), call. = FALSE
+            )
+            NULL
+          }
+        )
+        if(!is.null(record) && !identical(record$v, private$version))
+          record <- NULL
+
+        private$persist_record <- record
+        private$register_persist_observers(session)
+      }
+      # --- WP5 end ---
+
       opts <- list(
         globals = private$globals,
         steps = private$steps,
-        id = private$id
+        id = private$id,
+        # --- WP5 begin ---
+        runOnce = run_once,
+        persist = private$persist_mode,
+        version = private$version
+        # --- WP5 end ---
       )
 
-      private$run_once <- run_once
       private$initialized <- TRUE
       session$sendCustomMessage("cicerone-init", opts)
+
+      # --- WP5 begin: push the freshly-read adapter record to JS ---
+      # so client-side run_once/resume decisions (and `_seen`) match what
+      # was just read, without JS having to re-derive it
+      if(identical(private$persist_mode, "adapter")) {
+        session$sendCustomMessage(
+          "cicerone-persist-record",
+          list(id = private$id, record = record)
+        )
+      }
+      # --- WP5 end ---
+
       invisible(self)
     },
 #' @details
@@ -444,13 +581,46 @@ Cicerone <- R6::R6Class(
     destroy = function(session = NULL){
       self$reset(session)
     },
+# --- WP5 begin: $forget() ---
+#' @details
+#' Forget this tour's persisted record (see the `persist` argument of
+#' `$new()`). Removes it from the active backend (the cookie, or your
+#' adapter's `forget(id)`) and fires `{id}_cicerone_seen` with `NULL`.
+#' A no-op if `persist` was never set.
+#'
+#' @param session A valid Shiny session if `NULL` the function
+#' attempts to get the session with [shiny::getDefaultReactiveDomain()].
+    forget = function(session = NULL){
+      if(is.null(session))
+        session <- shiny::getDefaultReactiveDomain()
+
+      if(identical(private$persist_mode, "adapter")) {
+        tryCatch(
+          private$persist$forget(private$id),
+          error = function(e) warning(
+            "cicerone: persist$forget() failed for '", private$id, "': ",
+            conditionMessage(e), call. = FALSE
+          )
+        )
+      }
+
+      private$persist_record <- NULL
+      session$sendCustomMessage("cicerone-forget", list(id = private$id))
+      invisible(self)
+    },
+# --- WP5 end ---
 #' @details
 #' Start Cicerone.
 #'
 #' @param step The step index at which to start.
 #' @param session A valid Shiny session if `NULL` the function
 #' attempts to get the session with [shiny::getDefaultReactiveDomain()].
-    start = function(step = 1, session = NULL){
+#' @param resume When persistence is on (see the `persist` argument of
+#' `$new()`) and the persisted record's `status` is `"in_progress"`,
+#' start at its `idx` instead of `step`. Ignored otherwise (including
+#' when there is no persisted record, or its `status` is `"completed"`
+#' or `"dismissed"`).
+    start = function(step = 1, session = NULL, resume = FALSE){
       if(is.null(session))
         session <- shiny::getDefaultReactiveDomain()
 
@@ -460,7 +630,10 @@ Cicerone <- R6::R6Class(
 
       private$runs <- private$runs + 1L
       step <- step - 1
-      session$sendCustomMessage("cicerone-start", list(step = step, id = private$id))
+      session$sendCustomMessage(
+        "cicerone-start",
+        list(step = step, id = private$id, resume = isTRUE(resume))
+      )
 
       invisible(self)
     },
@@ -622,8 +795,9 @@ Cicerone <- R6::R6Class(
     },
 #' @details Retrieve data that was fired when the tour ended: a list
 #' with `reason` (one of `"done"`, `"close"`, `"programmatic"`,
-#' `"dismissed"`), `completed` (`TRUE` when `reason` is `"done"`),
-#' `index` and `total_steps`. See [cicerone_inputs].
+#' `"superseded"`, `"suppressed"`, `"dismissed"`), `completed` (`TRUE`
+#' when `reason` is `"done"`), `index` and `total_steps`. See
+#' [cicerone_inputs].
 #'
 #' @param session A valid Shiny session if `NULL` the function
 #' attempts to get the session with [shiny::getDefaultReactiveDomain()].
@@ -837,7 +1011,105 @@ Cicerone <- R6::R6Class(
     run_once = FALSE,
     mathjax = FALSE,
     # --- WP4 begin ---
-    initialized = FALSE
+    initialized = FALSE,
     # --- WP4 end ---
+    # --- WP5 begin: persistence ---
+    persist = NULL,
+    persist_mode = NULL,
+    version = 1L,
+    persist_record = NULL,
+    # Adapter backend only (cookie backend's writes are entirely
+    # client-side, see srcjs/exts/persist.js): build a record from each
+    # of `_started`/`_state`/`_ended` and call `persist$write(id,
+    # record)`. `_started`/`_state`/`_ended` are the existing bridge
+    # inputs (see `?cicerone_inputs`); persistence adds no new ones on
+    # the write side.
+    #
+    # `persist_on_started`/`persist_on_state`/`persist_on_ended` are
+    # deliberately plain, directly-callable methods (not inlined into
+    # the `observeEvent()` calls below) so tests can invoke them with a
+    # hand-built payload and no reactive context at all -- see
+    # test-persist.R.
+    write_persist_record = function(record) {
+      id <- private$id
+      tryCatch(
+        private$persist$write(id, record),
+        error = function(e) warning(
+          "cicerone: persist$write() failed for '", id, "': ",
+          conditionMessage(e), call. = FALSE
+        )
+      )
+    },
+    persist_on_started = function(payload) {
+      prev <- private$persist_record
+      record <- list(
+        v = private$version,
+        status = "in_progress",
+        idx = payload$index,
+        n = (if(!is.null(prev)) prev$n else 0L) + 1L,
+        t = iso_now()
+      )
+      private$persist_record <- record
+      private$write_persist_record(record)
+    },
+    persist_on_state = function(payload) {
+      # `_state` and `_started` are both emitted from the same
+      # onHighlighted call (bridge.js emits `_state` first, then
+      # `_started` when `!active[id]`), as two separate Shiny inputs;
+      # Shiny does not guarantee which of the two observers below runs
+      # first within the resulting flush. `n`'s fallback must therefore
+      # be 0, not 1 -- matching `persist_on_started`'s own "no prior
+      # record" fallback -- so the final count is 1 regardless of
+      # which handler happens to run first (0 -> `_started` bumps to 1,
+      # or `_started` already set 1 and this leaves it alone).
+      prev <- private$persist_record
+      record <- list(
+        v = private$version,
+        status = if(!is.null(prev)) prev$status else "in_progress",
+        idx = payload$index,
+        n = if(!is.null(prev)) prev$n else 0L,
+        t = iso_now()
+      )
+      private$persist_record <- record
+      private$write_persist_record(record)
+    },
+    persist_on_ended = function(payload) {
+      # a suppressed start never actually ran: nothing changed, the
+      # existing record already reflects the last real outcome
+      if(identical(payload$reason, "suppressed")) return(invisible(NULL))
+
+      prev <- private$persist_record
+      record <- list(
+        v = private$version,
+        status = if(identical(payload$reason, "done")) "completed" else "dismissed",
+        idx = if(!is.null(payload$index)) payload$index else if(!is.null(prev)) prev$idx else NULL,
+        n = if(!is.null(prev)) prev$n else 1L,
+        t = iso_now()
+      )
+      private$persist_record <- record
+      private$write_persist_record(record)
+    },
+    register_persist_observers = function(session) {
+      id <- private$id
+
+      shiny::observeEvent(
+        session$input[[paste0(id, "_cicerone_started")]],
+        private$persist_on_started(session$input[[paste0(id, "_cicerone_started")]]),
+        ignoreInit = TRUE, domain = session
+      )
+
+      shiny::observeEvent(
+        session$input[[paste0(id, "_cicerone_state")]],
+        private$persist_on_state(session$input[[paste0(id, "_cicerone_state")]]),
+        ignoreInit = TRUE, domain = session
+      )
+
+      shiny::observeEvent(
+        session$input[[paste0(id, "_cicerone_ended")]],
+        private$persist_on_ended(session$input[[paste0(id, "_cicerone_ended")]]),
+        ignoreInit = TRUE, domain = session
+      )
+    }
+    # --- WP5 end ---
   )
 )

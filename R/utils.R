@@ -2,6 +2,12 @@ generate_id <- function() {
   paste0(sample(letters, 26), collapse = "")
 }
 
+# WP5: last-shown timestamp for a persisted tour record, ISO-8601 UTC
+# ("Z" suffix), e.g. "2026-09-06T12:34:56Z".
+iso_now <- function() {
+  strftime(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
+}
+
 # valid `progress_style` values, shared by `Cicerone$new()`/`initialise()`
 # (config-level, always resolved to one of these via `match.arg()`) and
 # `step()`/`highlight()` (step-level, where `NULL` means "inherit the
