@@ -9,7 +9,9 @@ Define cicerone steps, powered by driver.js 1.x.
 \section{Side and alignment}{
 
 driver.js 1.x positions popovers with \code{side} (\code{left}, \code{right},
-\code{top}, \code{bottom}, \code{over}) and \code{align} (\code{start}, \code{center}, \code{end}).
+\code{top}, \code{bottom}) and \code{align} (\code{start}, \code{center}, \code{end}). For a
+centred popover with no target element, omit \code{el}; driver.js
+renders it over the page.
 The pre-2.0.0 \code{position} argument is still accepted and mapped to
 the equivalent \code{side}/\code{align} pair:
 \itemize{
@@ -26,7 +28,8 @@ the equivalent \code{side}/\code{align} pair:
 
 All \verb{on_*} arguments take a string of JavaScript defining a function.
 Tour hooks receive \verb{(element, step, opts)} where \code{opts} contains
-\code{config}, \code{state} and \code{driver}. For example:
+\code{config}, \code{state}, \code{driver} and \code{index} (the active step's 0-based
+index, possibly \code{undefined}). For example:
 \code{"function(element, step, opts) { console.log(step); }"}.
 }
 
@@ -259,7 +262,8 @@ effectively a string that is evaluated JavaScript-side.}
 clicked. Unless the function returns \code{false} the tour then advances.
 This is effectively a string that is evaluated JavaScript-side.}
       \item{\code{side}}{Side the popover is positioned on: \code{"left"}, \code{"right"},
-\code{"top"}, \code{"bottom"} or \code{"over"}.}
+\code{"top"} or \code{"bottom"}. For a centred popover with no target
+element, omit \code{el}; driver.js renders it over the page.}
       \item{\code{align}}{Alignment of the popover along the chosen side:
 \code{"start"}, \code{"center"} or \code{"end"}.}
       \item{\code{disable_buttons}}{Buttons to render disabled for this step.}
@@ -585,10 +589,13 @@ attempts to get the session with \code{\link[shiny:getDefaultReactiveDomain]{shi
   }
   \subsection{Details}{
     Retrieve the state of the tour: a list with \code{highlighted}
-(the highlighted element's id), \code{before_previous}, \code{has_next},
-\code{has_previous}, \code{index} (0-based active step index), \code{is_first},
-\code{is_last}, and \code{total_steps}. Updated every time a step is
-highlighted.
+(the highlighted element's id), \code{previous} (\strong{deprecated}: this
+duplicates \code{highlighted}, not the previously highlighted element;
+kept only for cicerone < 2.0.0 compatibility, use \code{before_previous}
+instead), \code{before_previous} (the previously highlighted element's
+id), \code{has_next}, \code{has_previous}, \code{index} (0-based active step
+index), \code{is_first}, \code{is_last}, and \code{total_steps}. Updated every
+time a step is highlighted.
   }
 }
 

@@ -75,7 +75,7 @@ button as an x icon, it no longer has text.}
 \item{prev_btn_text}{Previous button text.}
 
 \item{side}{Side the popover is positioned on: \code{"left"}, \code{"right"},
-\code{"top"}, \code{"bottom"} or \code{"over"}.}
+\code{"top"} or \code{"bottom"}.}
 
 \item{align}{Alignment of the popover along the chosen side:
 \code{"start"}, \code{"center"} or \code{"end"}.}
@@ -130,8 +130,11 @@ Initialise and highlight an element.
 \section{Side and alignment}{
 
 driver.js 1.x positions popovers with \code{side} (\code{left}, \code{right}, \code{top},
-\code{bottom}, \code{over}) and \code{align} (\code{start}, \code{center}, \code{end}). The
-pre-2.0.0 \code{position} values (e.g.: \code{left-center}, \code{top-right},
-\code{mid-center}) are still accepted and mapped automatically.
+\code{bottom}) and \code{align} (\code{start}, \code{center}, \code{end}). \code{highlight()}
+always requires \code{el}; for a centred popover with no target element,
+use \code{Cicerone$step()} instead and omit \code{el} there — driver.js
+renders it over the page. The pre-2.0.0 \code{position} values (e.g.:
+\code{left-center}, \code{top-right}, \code{mid-center}) are still accepted and
+mapped automatically.
 }
 
