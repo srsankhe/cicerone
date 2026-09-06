@@ -67,6 +67,27 @@
   `onPopoverRender`.
 - New read-only getters: `Cicerone$get_id()`, `Cicerone$get_steps()`,
   `Hints$get_id()`, `Hints$get_hints()`.
+- New step options `advance_on` and `advance_when` (`step()` and
+  `highlight()`), letting a step advance for reasons other than
+  clicking the highlighted element:
+  - `advance_on`: a selector string (event defaults to `"click"`) or
+    `list(el = "...", event = "...")`. Unlike driver.js's own
+    `advance_on_click`, which only reacts to the highlighted element,
+    `advance_on` reacts to a named event on any element on the page.
+  - `advance_when`: a JavaScript predicate `(step, opts) => boolean`,
+    evaluated once when the step is highlighted and again on every DOM
+    mutation and `input`/`change` event until it returns `true`.
+  - Both may be set on the same step; whichever fires first advances
+    the tour and disarms the other. For a server-driven alternative,
+    use `observeEvent(input$x, tour$move_forward())`.
+  - New `_event` type `"advance"`, with `element` the triggering
+    selector (`advance_on`) or the currently highlighted element
+    (`advance_when`), without the leading `#`.
+  - On the last step, either mechanism ends the tour with
+    `_ended$reason = "dismissed"` rather than `"done"`, the same way
+    `$move_forward()` already does there: both call driver.js's
+    `moveNext()` directly, which does not route through the Done
+    button's hook resolution.
 
 # cicerone 2.0.0
 
