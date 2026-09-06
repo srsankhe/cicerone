@@ -54,6 +54,15 @@
   stopped auto-dismissing the hint, mirroring the `onCloseClick`
   replacement behaviour in driver.js tours; cicerone now calls
   `dismiss()` after the hook runs, unless the hook returns `false`.
+- `initialise()` and `highlight()` now accept every option their `Cicerone`/
+  `$step()` equivalents accept. `initialise()` gains `allow_scroll`,
+  `disable_active_interaction`, `advance_on_click`, `skip_missing_element`,
+  `wait_for_element`, `disable_buttons`, `show_progress`, `progress_text`,
+  `duration`, and all ten config-level `on_*` hooks. `highlight()` gains
+  `show_progress`, `progress_text`, `on_popover_render`, `on_next`,
+  `on_prev`, `on_close`, `on_done`, `disable_active_interaction`,
+  `advance_on_click`, `skip_missing_element`, `wait_for_element`, and
+  `data`.
 
 # cicerone 2.0.0
 
