@@ -18,21 +18,33 @@
 #' | `{id}_cicerone_event` | yes | `list(type, index, element, total_steps, time)` | every lifecycle event below, in addition to its specific input |
 #' | `{id}_cicerone_reset` | yes | `TRUE` | the tour is destroyed, for any reason (kept for 1.x compatibility; use `_ended` for the reason) |
 #' | `cicerone_reset` | yes | `TRUE` | any tour on the page is destroyed (not namespaced by `id`) |
+#' | `{id}_cicerone_seen` | yes | the persisted record (`list(v, status, idx, n, t)`), or `NULL` | `$init()`, when `persist` is set (see [Cicerone]); not fired otherwise |
 #'
 #' `reason` in `_ended` is one of `"done"` (the Done button on the last
 #' step), `"close"` (the close button), `"programmatic"` (`$reset()`/
-#' `$destroy()` called from the server), or `"dismissed"` (Escape, an
-#' overlay click, or anything else). `completed` is `TRUE` exactly when
-#' `reason` is `"done"`.
+#' `$destroy()` called from the server, or [destroy_all()]),
+#' `"superseded"` (another tour started with `exclusive = TRUE` while
+#' this one was active, see [Cicerone]), `"suppressed"` (`persist` is
+#' set, `$init(run_once = TRUE)`, and the persisted record's `status` is
+#' already `"completed"`: `$start()` does not drive the tour), or
+#' `"dismissed"` (Escape, an overlay click, or anything else).
+#' `completed` is `TRUE` exactly when `reason` is `"done"`.
 #'
 #' `type` in `_event` is one of `"started"`, `"highlighted"`, `"next"`,
 #' `"previous"`, `"done"`, `"close"`, `"ended"`, `"hint_opened"`,
-#' `"hint_dismissed"`, `"hint_button"`, or `"advance"` (a step's
-#' `advance_on`/`advance_when` fired, see [Cicerone]'s `step()`).
-#' `element` is the id of the event's associated element (the
-#' highlighted step's element for tour events, the `advance_on` element
-#' for an `"advance"` event triggered by it, the hint's element for hint
-#' events), or `NULL`. `time` is an ISO-8601 string.
+#' `"hint_dismissed"`, `"hint_button"`, `"advance"` (a step's
+#' `advance_on`/`advance_when` fired, see [Cicerone]'s `step()`),
+#' `"start_failed"` (the tour is active but rendered no popover one frame
+#' after `$start()`; not retried automatically), `"anchor_timeout"` (a
+#' step's `wait_for_visible` timed out; the tour moves to the step anyway
+#' unless `skip_missing_element` applies), or `"no_visible_steps"`
+#' (`$start()` was called but every step's `show_if` predicate returned
+#' `false`; the tour does not start, `index` and `element` are `NULL`,
+#' `total_steps` is `0`, see [Cicerone]'s `step()`). `element` is the id
+#' of the event's associated element (the highlighted step's element for
+#' tour events, the `advance_on` element for an `"advance"` event
+#' triggered by it, the hint's element for hint events), or `NULL`.
+#' `time` is an ISO-8601 string.
 #'
 #' @section Hint inputs:
 #' | Input | Event | Payload | Fires |
@@ -47,7 +59,19 @@
 #' `index` the hint's 0-based position and `total_steps` the number of
 #' hints.
 #'
-#' @seealso [Cicerone], [Hints]
+#' @section Standalone inputs:
+#' | Input | Event | Payload | Fires |
+#' | --- | --- | --- | --- |
+#' | `{id}_cicerone_anchor` | yes | `list(selector, found, visible, elapsed)` | a [wait_for_element()] call resolves (element found, or `timeout` reached) |
+#'
+#' `{id}_cicerone_anchor` needs no [Cicerone] or [Hints] object; `id`
+#' comes from [wait_for_element()]'s `id` argument (a sanitised form of
+#' `selector` by default). `found` is `TRUE` once `selector` matched an
+#' element; `visible` is `TRUE` once that element had a non-zero
+#' `getBoundingClientRect()`; `elapsed` is milliseconds from the call to
+#' resolution.
+#'
+#' @seealso [Cicerone], [Hints], [destroy_all()], [wait_for_element()], [tour_state()]
 #'
 #' @name cicerone_inputs
 NULL

@@ -28,6 +28,12 @@ among \code{"next"}, \code{"previous"}, and \code{"close"}.}
 \item{progress_text}{Template for the progress text, e.g.:
 \code{"{{current}} of {{total}}"}.}
 
+\item{progress_style}{Progress indicator style: \code{"text"} (the
+default, e.g.: \code{"2 of 5"}), \code{"bar"}, or \code{"dots"}, themable with
+\code{\link[=cicerone_theme]{cicerone_theme()}}. \code{"bar"}/\code{"dots"} force \code{show_progress} on
+regardless of the \code{show_progress} argument. At the step level, \code{NULL}
+inherits the tour's style.}
+
 \item{duration}{Animation duration in milliseconds.}
 
 \item{on_popover_render}{JavaScript function called when the popover
