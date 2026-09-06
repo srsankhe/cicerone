@@ -8,6 +8,7 @@ import {
   wrapNext,
   wrapPrevious,
   emitEvent,
+  emitInput,
 } from "./bridge.js";
 import {
   evalFunction,
