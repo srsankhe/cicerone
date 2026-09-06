@@ -113,6 +113,22 @@ guide_adv <- Cicerone$
       "document.querySelector('#adv_parsed').checked"
     )
   )
+# WP9: progress variants (`progress_style`) and theming (`cicerone_theme()`).
+guide_bar <- Cicerone$
+  new(id = "e2e_bar", progress_style = "bar")$
+  step(el = "el1", title = "Bar 1", description = "Step 1 of 3.")$
+  step(el = "el2", title = "Bar 2", description = "Step 2 of 3.")$
+  step(el = "el3", title = "Bar 3", description = "Step 3 of 3.")
+
+guide_dots <- Cicerone$
+  new(id = "e2e_dots", progress_style = "dots")$
+  step(el = "el1", title = "Dots 1", description = "Step 1 of 3.")$
+  step(el = "el2", title = "Dots 2", description = "Step 2 of 3.")$
+  step(el = "el3", title = "Dots 3", description = "Step 3 of 3.")
+
+guide_themed <- Cicerone$
+  new(id = "e2e_themed", popover_class = "e2e-themed")$
+  step(el = "el1", title = "Themed", description = "Accent should be red.")
 
 ui <- fluidPage(
   use_cicerone(),
@@ -134,6 +150,9 @@ ui <- fluidPage(
   actionButton("btn_start_parity", "Start parity tour"),
   actionButton("btn_start_close_destroy", "Start close-destroy tour"),
   actionButton("btn_show_hints_button", "Show button hint"),
+  actionButton("btn_start_bar", "Start bar tour"),
+  actionButton("btn_start_dots", "Start dots tour"),
+  actionButton("btn_start_themed", "Start themed tour"),
   verbatimTextOutput("out_state"),
   verbatimTextOutput("out_next"),
   verbatimTextOutput("out_previous"),
@@ -145,7 +164,8 @@ ui <- fluidPage(
   textInput("adv_name", "Name", value = ""),
   checkboxInput("adv_parsed", "Parsed", value = FALSE),
   actionButton("btn_start_adv", "Start advance tour"),
-  actionButton("btn_reset_adv", "Reset advance tour")
+  actionButton("btn_reset_adv", "Reset advance tour"),
+  cicerone_theme(accent = "#ff0000", selector = ".e2e-themed")
 )
 
 server <- function(input, output, session) {
@@ -158,6 +178,9 @@ server <- function(input, output, session) {
   guide_close_destroy$init()
   hints_button$init()
   guide_adv$init()
+  guide_bar$init()
+  guide_dots$init()
+  guide_themed$init()
 
   observeEvent(input$btn_start, guide$start())
   observeEvent(input$btn_reset, guide$reset())
@@ -169,6 +192,9 @@ server <- function(input, output, session) {
   observeEvent(input$btn_show_hints_button, hints_button$show())
   observeEvent(input$btn_start_adv, guide_adv$start())
   observeEvent(input$btn_reset_adv, guide_adv$reset())
+  observeEvent(input$btn_start_bar, guide_bar$start())
+  observeEvent(input$btn_start_dots, guide_dots$start())
+  observeEvent(input$btn_start_themed, guide_themed$start())
 
   output$out_state <- renderPrint(input[["e2e_cicerone_state"]])
   output$out_next <- renderPrint(input[["e2e_cicerone_next"]])
