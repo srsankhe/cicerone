@@ -19,6 +19,9 @@ import {
   cleanupStaleHighlights,
   makeTabActivator,
 } from "./util.js";
+// --- WP6 begin ---
+import { armAdvance, disarmAdvance } from "./advance.js";
+// --- WP6 end ---
 
 // Hook option names that may arrive from R as strings of JavaScript
 const CONFIG_HOOKS = [
@@ -96,7 +99,24 @@ Shiny.addCustomMessageHandler("cicerone-init", function (opts) {
       emitEvent(id, "started", state);
     }
     emitEvent(id, "highlighted", state);
+    // --- WP6 begin ---
+    armAdvance(id, step);
+    // --- WP6 end ---
   };
+
+  // --- WP6 begin ---
+  // config-level onDeselected: fires whenever the tour moves away from a
+  // step, including on destroy() (driver.js's `h()` calls onDeselected
+  // just before onDestroyed when there was an active step -- see
+  // driver.js.mjs). A step-level onDeselected (step(on_deselected = ))
+  // overrides this the same way a step-level onHighlighted overrides
+  // onHighlighted above, so the step loop below re-wraps it there too.
+  const userDeselected = config.onDeselected;
+  config.onDeselected = (element, step, hookOpts) => {
+    disarmAdvance(id);
+    if (userDeselected) userDeselected(element, step, hookOpts);
+  };
+  // --- WP6 end ---
 
   // always notify Shiny when next/previous is clicked
   const origConfigNext = config.onNextClick;
@@ -127,6 +147,12 @@ Shiny.addCustomMessageHandler("cicerone-init", function (opts) {
   // always notify Shiny when the tour is closed/destroyed
   const userDestroyed = config.onDestroyed;
   config.onDestroyed = (element, step, hookOpts) => {
+    // --- WP6 begin ---
+    // usually already a no-op here (onDeselected above already disarmed
+    // on the way out); kept as a safety net for the one path that skips
+    // onDeselected entirely -- destroy() called while nothing is active.
+    disarmAdvance(id);
+    // --- WP6 end ---
     if (userDestroyed) userDestroyed(element, step, hookOpts);
 
     const reason = pendingReason[id] || "dismissed";
@@ -166,6 +192,30 @@ Shiny.addCustomMessageHandler("cicerone-init", function (opts) {
     delete step.tab;
 
     evalHooks(step, STEP_HOOKS);
+
+    // --- WP6 begin ---
+    // a step-level onHighlighted/onDeselected (step(on_highlighted = )/
+    // step(on_deselected = )) overrides the config-level hooks wrapped
+    // above (`f=n?.onHighlighted||e.getConfig("onHighlighted")` /
+    // `m=a?.onDeselected||e.getConfig("onDeselected")` in driver.js.mjs),
+    // so a step that defines either must re-run arm/disarm itself here,
+    // the same way `userStart` above re-runs cleanupStaleHighlights for a
+    // step-level override of onHighlightStarted.
+    if (step.onHighlighted) {
+      const userStepHighlighted = step.onHighlighted;
+      step.onHighlighted = (element, s, hookOpts) => {
+        userStepHighlighted(element, s, hookOpts);
+        armAdvance(id, s);
+      };
+    }
+    if (step.onDeselected) {
+      const userStepDeselected = step.onDeselected;
+      step.onDeselected = (element, s, hookOpts) => {
+        disarmAdvance(id);
+        userStepDeselected(element, s, hookOpts);
+      };
+    }
+    // --- WP6 end ---
 
     if (step.popover) {
       evalHooks(step.popover, POPOVER_HOOKS);
@@ -254,5 +304,25 @@ Shiny.addCustomMessageHandler("cicerone-highlight-man", function (opts) {
     }
   }
   evalHooks(opts, STEP_HOOKS);
+
+  // --- WP6 begin ---
+  // mirrors the step-loop wrap in cicerone-init above: this ad hoc
+  // driver has no config-level onHighlighted/onDeselected to piggyback
+  // arm/disarm on, so wrap opts's own hooks directly when advance_on/
+  // advance_when are set.
+  if (opts.advanceOn || opts.advanceWhen) {
+    const userHighlighted = opts.onHighlighted;
+    const userDeselected = opts.onDeselected;
+    opts.onHighlighted = (element, step, hookOpts) => {
+      if (userHighlighted) userHighlighted(element, step, hookOpts);
+      armAdvance(id, step);
+    };
+    opts.onDeselected = (element, step, hookOpts) => {
+      disarmAdvance(id);
+      if (userDeselected) userDeselected(element, step, hookOpts);
+    };
+  }
+  // --- WP6 end ---
+
   drivers[id].highlight(opts);
 });
