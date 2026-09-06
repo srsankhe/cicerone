@@ -63,6 +63,8 @@
   `on_prev`, `on_close`, `on_done`, `disable_active_interaction`,
   `advance_on_click`, `skip_missing_element`, `wait_for_element`, and
   `data`.
+- `Hints$hint()` gains `on_popover_render`, mapped to the hint popover's
+  `onPopoverRender`.
 
 # cicerone 2.0.0
 

@@ -117,6 +117,7 @@ set of hints.}
   on_button_click = NULL,
   on_open = NULL,
   on_dismiss = NULL,
+  on_popover_render = NULL,
   beacon_side = NULL,
   beacon_align = NULL,
   beacon_animate = NULL,
@@ -142,6 +143,8 @@ button is clicked.}
       \item{\code{on_open}}{JavaScript function called when this hint is opened.}
       \item{\code{on_dismiss}}{JavaScript function called when this hint is
 dismissed.}
+      \item{\code{on_popover_render}}{JavaScript function called when this hint's
+popover is rendered.}
       \item{\code{beacon_side}}{Side of the element the beacon is placed on.}
       \item{\code{beacon_align}}{Alignment of the beacon along the chosen side.}
       \item{\code{beacon_animate}}{Whether the beacon pulses.}
