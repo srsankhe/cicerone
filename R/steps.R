@@ -100,6 +100,29 @@ Cicerone <- R6::R6Class(
 #' or `on_prev_click` is set, cicerone still fires the corresponding
 #' Shiny event and advances the tour, unless the callback returns
 #' `false`.
+#' @param exclusive Whether starting this tour first destroys every other
+#' currently active [Cicerone] tour (their `_ended` reason is
+#' `"superseded"`), so only one tour is ever visible at a time. Defaults
+#' to `TRUE`. Set to `FALSE` to allow overlapping tours; driver.js gives
+#' each tour its own popover and overlay, so two active tours mean two
+#' `.driver-popover` elements on the page at once (and, upstream, a
+#' duplicate `driver-popover-content` id). Hints are unaffected: they are
+#' not tours. See [destroy_all()] for a session-wide teardown regardless
+#' of `exclusive`.
+#' @param wait_for_visible Milliseconds to wait, before starting or
+#' moving to a step, for that step's element to not just exist but have
+#' a non-zero size (`getBoundingClientRect()` width and height both
+#' greater than 0) -- e.g. an element inside a Shiny tab that has not
+#' been shown yet, or one behind a slow render. Unlike `wait_for_element`
+#' (which only checks existence, and is implemented by driver.js itself),
+#' this is implemented by cicerone and only gates moves cicerone itself
+#' makes (`$start()`, the Next/Previous buttons, `on_next`/`on_prev`
+#' hooks that do not return `false`); a move made directly through
+#' `window.cicerone.drivers` bypasses it. On timeout, cicerone emits
+#' `{id}_cicerone_event` with `type = "anchor_timeout"` and moves anyway,
+#' unless `skip_missing_element` applies to that step, in which case it
+#' is skipped. Also settable per step, see the `wait_for_visible`
+#' argument of `step()` below, which overrides this default.
 #'
 #' @return A Cicerone object.
   public = list(
@@ -124,7 +147,8 @@ Cicerone <- R6::R6Class(
       on_deselected = NULL,
       on_destroy_started = NULL, on_destroyed = NULL,
       on_next_click = NULL, on_prev_click = NULL,
-      on_close_click = NULL, on_done_click = NULL
+      on_close_click = NULL, on_done_click = NULL,
+      exclusive = TRUE, wait_for_visible = NULL
     ) {
 
       if(is.null(id))
@@ -182,7 +206,9 @@ Cicerone <- R6::R6Class(
         on_next_click = on_next_click,
         on_prev_click = on_prev_click,
         on_close_click = on_close_click,
-        on_done_click = on_done_click
+        on_done_click = on_done_click,
+        exclusive = exclusive,
+        wait_for_visible = wait_for_visible
       )
 
       private$globals$id <- id
@@ -266,6 +292,10 @@ Cicerone <- R6::R6Class(
 #' `observeEvent(input$x, tour$move_forward())`. On the last step, either
 #' mechanism completes the tour (`_ended$reason = "done"`), as does
 #' `$move_forward()`.
+#' @param wait_for_visible Milliseconds to wait for this step's element to
+#' not just exist but have a non-zero size, before moving to it. Overrides
+#' the tour-level `wait_for_visible` (`Cicerone$new(wait_for_visible = )`)
+#' for this step only; see there for the full behaviour.
 #' @param data A named list of arbitrary data attached to the step,
 #' available to JavaScript callbacks as `step.data`.
     step = function(el = NULL, title = NULL, description = NULL, position = NULL,
@@ -281,7 +311,8 @@ Cicerone <- R6::R6Class(
       on_popover_render = NULL,
       disable_active_interaction = NULL, advance_on_click = NULL,
       skip_missing_element = NULL, wait_for_element = NULL,
-      advance_on = NULL, advance_when = NULL, data = NULL) {
+      advance_on = NULL, advance_when = NULL, wait_for_visible = NULL,
+      data = NULL) {
 
       if(!is.null(is_id))
         .Deprecated(
@@ -347,6 +378,7 @@ Cicerone <- R6::R6Class(
         waitForElement = wait_for_element,
         advanceOn = normalize_advance_on(advance_on),
         advanceWhen = validate_advance_when(advance_when),
+        waitForVisible = wait_for_visible,
         data = data
       ))
 

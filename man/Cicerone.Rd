@@ -112,7 +112,9 @@ index, possibly \code{undefined}). For example:
   on_next_click = NULL,
   on_prev_click = NULL,
   on_close_click = NULL,
-  on_done_click = NULL
+  on_done_click = NULL,
+  exclusive = TRUE,
+  wait_for_visible = NULL
 )}
     \if{html}{\out{</div>}}
   }
@@ -186,6 +188,29 @@ around tour destruction.}
 or \code{on_prev_click} is set, cicerone still fires the corresponding
 Shiny event and advances the tour, unless the callback returns
 \code{false}.}
+      \item{\code{exclusive}}{Whether starting this tour first destroys every other
+currently active \link{Cicerone} tour (their \verb{_ended} reason is
+\code{"superseded"}), so only one tour is ever visible at a time. Defaults
+to \code{TRUE}. Set to \code{FALSE} to allow overlapping tours; driver.js gives
+each tour its own popover and overlay, so two active tours mean two
+\code{.driver-popover} elements on the page at once (and, upstream, a
+duplicate \code{driver-popover-content} id). Hints are unaffected: they are
+not tours. See \code{\link[=destroy_all]{destroy_all()}} for a session-wide teardown regardless
+of \code{exclusive}.}
+      \item{\code{wait_for_visible}}{Milliseconds to wait, before starting or
+moving to a step, for that step's element to not just exist but have
+a non-zero size (\code{getBoundingClientRect()} width and height both
+greater than 0) -- e.g. an element inside a Shiny tab that has not
+been shown yet, or one behind a slow render. Unlike \code{wait_for_element}
+(which only checks existence, and is implemented by driver.js itself),
+this is implemented by cicerone and only gates moves cicerone itself
+makes (\verb{$start()}, the Next/Previous buttons, \code{on_next}/\code{on_prev}
+hooks that do not return \code{false}); a move made directly through
+\code{window.cicerone.drivers} bypasses it. On timeout, cicerone emits
+\verb{\{id\}_cicerone_event} with \code{type = "anchor_timeout"} and moves anyway,
+unless \code{skip_missing_element} applies to that step, in which case it
+is skipped. Also settable per step, see the \code{wait_for_visible}
+argument of \code{step()} below, which overrides this default.}
     }
     \if{html}{\out{</div>}}
   }
@@ -237,6 +262,7 @@ Shiny event and advances the tour, unless the callback returns
   wait_for_element = NULL,
   advance_on = NULL,
   advance_when = NULL,
+  wait_for_visible = NULL,
   data = NULL
 )}
     \if{html}{\out{</div>}}
@@ -316,6 +342,10 @@ point the tour advances. For a server-driven alternative, use
 \code{observeEvent(input$x, tour$move_forward())}. On the last step, either
 mechanism completes the tour (\verb{_ended$reason = "done"}), as does
 \verb{$move_forward()}.}
+      \item{\code{wait_for_visible}}{Milliseconds to wait for this step's element to
+not just exist but have a non-zero size, before moving to it. Overrides
+the tour-level \code{wait_for_visible} (\code{Cicerone$new(wait_for_visible = )})
+for this step only; see there for the full behaviour.}
       \item{\code{data}}{A named list of arbitrary data attached to the step,
 available to JavaScript callbacks as \code{step.data}.}
     }

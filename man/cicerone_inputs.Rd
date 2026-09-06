@@ -27,18 +27,24 @@ previous time, and are the ones you want in \code{observeEvent()}.
 
 \code{reason} in \verb{_ended} is one of \code{"done"} (the Done button on the last
 step), \code{"close"} (the close button), \code{"programmatic"} (\verb{$reset()}/
-\verb{$destroy()} called from the server), or \code{"dismissed"} (Escape, an
+\verb{$destroy()} called from the server, or \code{\link[=destroy_all]{destroy_all()}}),
+\code{"superseded"} (another tour started with \code{exclusive = TRUE} while
+this one was active, see \link{Cicerone}), or \code{"dismissed"} (Escape, an
 overlay click, or anything else). \code{completed} is \code{TRUE} exactly when
 \code{reason} is \code{"done"}.
 
 \code{type} in \verb{_event} is one of \code{"started"}, \code{"highlighted"}, \code{"next"},
 \code{"previous"}, \code{"done"}, \code{"close"}, \code{"ended"}, \code{"hint_opened"},
-\code{"hint_dismissed"}, \code{"hint_button"}, or \code{"advance"} (a step's
-\code{advance_on}/\code{advance_when} fired, see \link{Cicerone}'s \code{step()}).
-\code{element} is the id of the event's associated element (the
-highlighted step's element for tour events, the \code{advance_on} element
-for an \code{"advance"} event triggered by it, the hint's element for hint
-events), or \code{NULL}. \code{time} is an ISO-8601 string.
+\code{"hint_dismissed"}, \code{"hint_button"}, \code{"advance"} (a step's
+\code{advance_on}/\code{advance_when} fired, see \link{Cicerone}'s \code{step()}),
+\code{"start_failed"} (the tour is active but rendered no popover one frame
+after \verb{$start()}; not retried automatically), or \code{"anchor_timeout"} (a
+step's \code{wait_for_visible} timed out; the tour moves to the step anyway
+unless \code{skip_missing_element} applies). \code{element} is the id of the
+event's associated element (the highlighted step's element for tour
+events, the \code{advance_on} element for an \code{"advance"} event triggered by
+it, the hint's element for hint events), or \code{NULL}. \code{time} is an
+ISO-8601 string.
 }
 
 \section{Hint inputs}{
@@ -57,6 +63,21 @@ otherwise \code{NULL}. Every hint event also sets \verb{\{id\}_cicerone_event}
 hints.
 }
 
+\section{Standalone inputs}{
+\tabular{llll}{
+   Input \tab Event \tab Payload \tab Fires \cr
+   \verb{\{id\}_cicerone_anchor} \tab yes \tab \code{list(selector, found, visible, elapsed)} \tab a \code{\link[=wait_for_element]{wait_for_element()}} call resolves (element found, or \code{timeout} reached) \cr
+}
+
+
+\verb{\{id\}_cicerone_anchor} needs no \link{Cicerone} or \link{Hints} object; \code{id}
+comes from \code{\link[=wait_for_element]{wait_for_element()}}'s \code{id} argument (a sanitised form of
+\code{selector} by default). \code{found} is \code{TRUE} once \code{selector} matched an
+element; \code{visible} is \code{TRUE} once that element had a non-zero
+\code{getBoundingClientRect()}; \code{elapsed} is milliseconds from the call to
+resolution.
+}
+
 \seealso{
-\link{Cicerone}, \link{Hints}
+\link{Cicerone}, \link{Hints}, \code{\link[=destroy_all]{destroy_all()}}, \code{\link[=wait_for_element]{wait_for_element()}}
 }

@@ -144,7 +144,11 @@ build_config <- function(
   on_next_click = NULL,
   on_prev_click = NULL,
   on_close_click = NULL,
-  on_done_click = NULL
+  on_done_click = NULL,
+  # --- WP7 begin: exclusive / wait_for_visible ---
+  exclusive = TRUE,
+  wait_for_visible = NULL
+  # --- WP7 end ---
 ) {
   drop_nulls(list(
     animate = animate,
@@ -184,7 +188,15 @@ build_config <- function(
     onNextClick = on_next_click,
     onPrevClick = on_prev_click,
     onCloseClick = on_close_click,
-    onDoneClick = on_done_click
+    onDoneClick = on_done_click,
+    # --- WP7 begin: exclusive / wait_for_visible ---
+    # Not driver.js keys: read by cicerone's own `cicerone-start` handler
+    # (srcjs/exts/tour.js), passed straight through `Driver(config)`'s
+    # spread-into-defaults, which preserves unrecognised keys untouched
+    # (verified in driver.js.mjs's `ne()`/`configure()`).
+    exclusive = exclusive,
+    waitForVisible = wait_for_visible
+    # --- WP7 end ---
   ))
 }
 
