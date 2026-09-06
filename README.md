@@ -13,7 +13,9 @@
 
 cicerone adds guided tours and hints to Shiny applications, powered by [driver.js](https://driverjs.com/) 1.8. It is a fork of [JohnCoene/cicerone](https://github.com/JohnCoene/cicerone) (archived January 2025) that keeps the original API and upgrades the bundled driver.js from 0.9.8 to 1.8.0. Version 2.1.0 adds tour persistence across page reloads, conditional and mutable steps, auto-advancing steps, progress bars and dots, and Bootstrap theming.
 
-![](./man/figures/tour.gif)
+A full walkthrough: start the tour, type a name to advance automatically, switch tabs, and finish on an optional step.
+
+![Animated demo of a 3-step guided tour: clicking "Start tour" opens a popover on a text field, typing advances to a second tab, then a third optional step ends the tour](./man/figures/tour.gif)
 
 ## Quick start
 
@@ -99,7 +101,9 @@ tour$step(
 )
 ```
 
-![](./man/figures/advance-on.gif)
+Notice the field advances the tour without a Next click.
+
+![Animated demo: typing "Ada" into a text field advances the tour to the next step with no Next button click](./man/figures/advance-on.gif)
 
 ### Conditional and mutable tours
 
@@ -180,7 +184,7 @@ ui <- page_fluid(
 )
 ```
 
-![](./man/figures/theme.png)
+![Side-by-side comparison of the same popover in a tab card: default theme in light mode on the left, cicerone_theme(preset = "bootstrap") in dark mode on the right](./man/figures/theme.png)
 
 ### Hints
 
@@ -201,7 +205,9 @@ hints$init()$show()
 
 Hints fire `{id}_cicerone_hint_opened`, `{id}_cicerone_hint_dismissed`, and `{id}_cicerone_hint_button`, and can be driven from the server with `$open()`, `$close()`, `$dismiss()`, and `$restore()`.
 
-![](./man/figures/hints.gif)
+Clicking a beacon opens its popover; the button dismisses it.
+
+![Animated demo: clicking a pulsing beacon next to a text field opens a popover, and clicking its "Got it" button dismisses it](./man/figures/hints.gif)
 
 ## Shiny inputs
 
