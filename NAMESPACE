@@ -2,6 +2,7 @@
 
 export(Cicerone)
 export(Hints)
+export(cicerone_theme)
 export(highlight)
 export(initialise)
 export(use_cicerone)
