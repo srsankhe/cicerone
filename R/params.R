@@ -21,6 +21,11 @@
 #' (e.g.: `"2 of 5"`).
 #' @param progress_text Template for the progress text, e.g.:
 #' `"{{current}} of {{total}}"`.
+#' @param progress_style Progress indicator style: `"text"` (the
+#' default, e.g.: `"2 of 5"`), `"bar"`, or `"dots"`, themable with
+#' [cicerone_theme()]. `"bar"`/`"dots"` force `show_progress` on
+#' regardless of the `show_progress` argument. At the step level, `NULL`
+#' inherits the tour's style.
 #' @param duration Animation duration in milliseconds.
 #' @param on_popover_render JavaScript function called when the popover
 #' is rendered, receives `(popover, opts)`.

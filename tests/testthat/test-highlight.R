@@ -124,6 +124,35 @@ test_that("highlight forwards every step/popover-level option $step() has", {
   expect_equal(msg$data$foo, "bar")
 })
 
+test_that("initialise()'s progress_style is sent only when not the default", {
+  s <- make_session()
+  initialise("man1", session = s)
+  expect_null(s$msgs[[1]]$message$globals$progressStyle)
+
+  s2 <- make_session()
+  initialise("man2", progress_style = "bar", session = s2)
+  globals <- s2$msgs[[1]]$message$globals
+  expect_equal(globals$progressStyle, "bar")
+  expect_true(globals$showProgress)
+})
+
+test_that("initialise()'s invalid progress_style errors", {
+  expect_error(initialise("man", progress_style = "spinner"))
+})
+
+test_that("highlight()'s progress_style is sent verbatim and forces show_progress on", {
+  s <- make_session()
+  highlight("plot", "man", progress_style = "dots", session = s)
+
+  popover <- s$msgs[[1]]$message$popover
+  expect_equal(popover$progressStyle, "dots")
+  expect_true(popover$showProgress)
+})
+
+test_that("highlight()'s invalid progress_style errors", {
+  expect_error(highlight("plot", "man", progress_style = "spinner", session = make_session()))
+})
+
 test_that("initialise's formals match Cicerone$new() apart from a documented allowlist", {
   # `mathjax` is a Cicerone-only convenience that wraps each step's
   # `on_highlighted` hook for MathJax typesetting; the functional API has

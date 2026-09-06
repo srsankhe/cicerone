@@ -84,6 +84,10 @@ Cicerone <- R6::R6Class(
 #' (e.g.: `"2 of 5"`).
 #' @param progress_text Template for the progress text, e.g.:
 #' `"{{current}} of {{total}}"`.
+#' @param progress_style Progress indicator style: `"text"` (the
+#' default, e.g.: `"2 of 5"`), `"bar"`, or `"dots"`, themable with
+#' [cicerone_theme()]. `"bar"`/`"dots"` force `show_progress` on
+#' regardless of the `show_progress` argument.
 #' @param duration Animation duration in milliseconds.
 #' @param on_popover_render JavaScript function called when the popover
 #' is rendered, receives `(popover, opts)`.
@@ -113,6 +117,7 @@ Cicerone <- R6::R6Class(
       skip_missing_element = NULL, wait_for_element = NULL,
       popover_class = NULL, popover_offset = NULL,
       disable_buttons = NULL, show_progress = FALSE, progress_text = NULL,
+      progress_style = c("text", "bar", "dots"),
       duration = NULL,
       on_popover_render = NULL,
       on_highlight_started = NULL, on_highlighted = NULL,
@@ -139,6 +144,9 @@ Cicerone <- R6::R6Class(
           overlay_click_behavior <- "nextStep"
       }
 
+      progress_style <- match.arg(progress_style, progress_styles)
+      show_progress <- resolve_show_progress(progress_style, show_progress)
+
       private$globals <- build_config(
         animate = animate,
         overlay_color = overlay_color,
@@ -160,6 +168,7 @@ Cicerone <- R6::R6Class(
         disable_buttons = disable_buttons,
         show_progress = show_progress,
         progress_text = progress_text,
+        progress_style = progress_style,
         next_btn_text = next_btn_text,
         prev_btn_text = prev_btn_text,
         done_btn_text = done_btn_text,
@@ -210,6 +219,10 @@ Cicerone <- R6::R6Class(
 #' @param show_progress Whether to show progress text on this step.
 #' @param progress_text Progress text template for this step, e.g.:
 #' `"{{current}} of {{total}}"`.
+#' @param progress_style Progress indicator style for this step:
+#' `"text"`, `"bar"`, or `"dots"`. `NULL` (the default) inherits the
+#' tour's style; `"bar"`/`"dots"` force `show_progress` on for this step
+#' regardless of the `show_progress` argument.
 #' @param tab_id The id of the tabs to activate in order to highlight `tab_id`.
 #' @param is_id **Deprecated** Whether the selector passed to `el` is an
 #' HTML id, other selectors are detected automatically.
@@ -262,6 +275,7 @@ Cicerone <- R6::R6Class(
       on_highlighted = NULL, on_highlight_started = NULL, on_next = NULL,
       side = NULL, align = NULL,
       disable_buttons = NULL, show_progress = NULL, progress_text = NULL,
+      progress_style = NULL,
       done_btn_text = NULL,
       on_deselected = NULL, on_prev = NULL, on_close = NULL, on_done = NULL,
       on_popover_render = NULL,
@@ -286,6 +300,10 @@ Cicerone <- R6::R6Class(
       if(!is.null(el))
         el <- prep_element(el)
 
+      if(!is.null(progress_style))
+        progress_style <- match.arg(progress_style, progress_styles)
+      show_progress <- resolve_show_progress(progress_style, show_progress)
+
       if(private$mathjax) {
         on_highlighted <- paste0(
           "function(element, step, opts){setTimeout(function(){
@@ -305,6 +323,7 @@ Cicerone <- R6::R6Class(
         disable_buttons = disable_buttons,
         show_progress = show_progress,
         progress_text = progress_text,
+        progress_style = progress_style,
         next_btn_text = next_btn_text,
         prev_btn_text = prev_btn_text,
         done_btn_text = done_btn_text,

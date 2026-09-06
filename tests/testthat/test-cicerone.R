@@ -330,3 +330,80 @@ test_that("highlight(advance_when=) payload", {
   )
   expect_equal(s$msgs[[1]]$message$advanceWhen, "() => true")
 })
+
+# WP9 -------------------------------------------------------------------
+
+test_that("progress_style defaults to text and is not sent", {
+  s <- make_session()
+  g <- Cicerone$new(id = "pg1")$step("plot", title = "x")
+  g$init(session = s)
+
+  gl <- s$msgs[[1]]$message$globals
+  expect_null(gl$progressStyle)
+  expect_false(isTRUE(gl$showProgress))
+})
+
+test_that("tour-level progress_style is sent and forces show_progress on", {
+  s <- make_session()
+  g <- Cicerone$new(id = "pg2", progress_style = "bar")$step("plot", title = "x")
+  g$init(session = s)
+
+  gl <- s$msgs[[1]]$message$globals
+  expect_equal(gl$progressStyle, "bar")
+  expect_true(gl$showProgress)
+})
+
+test_that("tour-level progress_style = 'dots' is sent verbatim", {
+  s <- make_session()
+  g <- Cicerone$new(id = "pg3", progress_style = "dots")$step("plot", title = "x")
+  g$init(session = s)
+
+  expect_equal(s$msgs[[1]]$message$globals$progressStyle, "dots")
+})
+
+test_that("an explicit show_progress = FALSE is overridden by bar/dots", {
+  s <- make_session()
+  g <- Cicerone$new(
+    id = "pg4", progress_style = "bar", show_progress = FALSE
+  )$step("plot", title = "x")
+  g$init(session = s)
+
+  expect_true(s$msgs[[1]]$message$globals$showProgress)
+})
+
+test_that("an invalid tour-level progress_style errors", {
+  expect_error(Cicerone$new(progress_style = "spinner"))
+})
+
+test_that("step-level progress_style overrides the tour's default", {
+  s <- make_session()
+  g <- Cicerone$
+    new(id = "pg5", progress_style = "bar")$
+    step("plot", title = "x")$
+    step("table", title = "y", progress_style = "text")
+  g$init(session = s)
+
+  st <- s$msgs[[1]]$message$steps
+  expect_null(st[[1]]$popover$progressStyle)
+  expect_equal(st[[2]]$popover$progressStyle, "text")
+  # the overriding step's own show_progress is untouched by "text"
+  expect_null(st[[2]]$popover$showProgress)
+})
+
+test_that("step-level progress_style = 'dots' forces show_progress on for that step", {
+  s <- make_session()
+  g <- Cicerone$
+    new(id = "pg6")$
+    step("plot", title = "x", progress_style = "dots")
+  g$init(session = s)
+
+  st <- s$msgs[[1]]$message$steps
+  expect_equal(st[[1]]$popover$progressStyle, "dots")
+  expect_true(st[[1]]$popover$showProgress)
+  # the tour-level default is untouched (still "text", not sent)
+  expect_null(s$msgs[[1]]$message$globals$progressStyle)
+})
+
+test_that("an invalid step-level progress_style errors", {
+  expect_error(Cicerone$new()$step("plot", title = "x", progress_style = "spinner"))
+})

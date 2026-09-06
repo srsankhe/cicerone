@@ -101,6 +101,7 @@ index, possibly \code{undefined}). For example:
   disable_buttons = NULL,
   show_progress = FALSE,
   progress_text = NULL,
+  progress_style = c("text", "bar", "dots"),
   duration = NULL,
   on_popover_render = NULL,
   on_highlight_started = NULL,
@@ -170,6 +171,10 @@ among \code{"next"}, \code{"previous"}, and \code{"close"}.}
 (e.g.: \code{"2 of 5"}).}
       \item{\code{progress_text}}{Template for the progress text, e.g.:
 \code{"{{current}} of {{total}}"}.}
+      \item{\code{progress_style}}{Progress indicator style: \code{"text"} (the
+default, e.g.: \code{"2 of 5"}), \code{"bar"}, or \code{"dots"}, themable with
+\code{\link[=cicerone_theme]{cicerone_theme()}}. \code{"bar"}/\code{"dots"} force \code{show_progress} on
+regardless of the \code{show_progress} argument.}
       \item{\code{duration}}{Animation duration in milliseconds.}
       \item{\code{on_popover_render}}{JavaScript function called when the popover
 is rendered, receives \verb{(popover, opts)}.}
@@ -219,6 +224,7 @@ Shiny event and advances the tour, unless the callback returns
   disable_buttons = NULL,
   show_progress = NULL,
   progress_text = NULL,
+  progress_style = NULL,
   done_btn_text = NULL,
   on_deselected = NULL,
   on_prev = NULL,
@@ -275,6 +281,10 @@ element, omit \code{el}; driver.js renders it over the page.}
       \item{\code{show_progress}}{Whether to show progress text on this step.}
       \item{\code{progress_text}}{Progress text template for this step, e.g.:
 \code{"{{current}} of {{total}}"}.}
+      \item{\code{progress_style}}{Progress indicator style for this step:
+\code{"text"}, \code{"bar"}, or \code{"dots"}. \code{NULL} (the default) inherits the
+tour's style; \code{"bar"}/\code{"dots"} force \code{show_progress} on for this step
+regardless of the \code{show_progress} argument.}
       \item{\code{done_btn_text}}{Done button text, on the last step.}
       \item{\code{on_deselected}}{A JavaScript function to run when the step is
 deselected (the tour moved away from it).}

@@ -2,6 +2,24 @@ generate_id <- function() {
   paste0(sample(letters, 26), collapse = "")
 }
 
+# valid `progress_style` values, shared by `Cicerone$new()`/`initialise()`
+# (config-level, always resolved to one of these via `match.arg()`) and
+# `step()`/`highlight()` (step-level, where `NULL` means "inherit the
+# tour's style" and is validated separately by the caller)
+progress_styles <- c("text", "bar", "dots")
+
+# "bar"/"dots" progress needs driver.js's own `showProgress` flag on: the
+# bar/dots CSS in custom.css repurposes the `.driver-popover-progress-
+# text` node, which driver.js only *shows* (vs. `display: none`) when
+# `showProgress` is true. Force it on whenever `progress_style` asks for
+# a bar or dots, regardless of what the caller passed for
+# `show_progress`, rather than silently no-op the feature.
+resolve_show_progress <- function(progress_style, show_progress) {
+  if (identical(progress_style, "bar") || identical(progress_style, "dots"))
+    return(TRUE)
+  show_progress
+}
+
 prep_element <- function (el) {
   if (!grepl("(?:^\\.)|(?:^\\#)|<|>|\\[|\\s", el)) paste0("#", el) else el
 }
@@ -112,6 +130,7 @@ build_config <- function(
   disable_buttons = NULL,
   show_progress = FALSE,
   progress_text = NULL,
+  progress_style = "text",
   next_btn_text = "Next",
   prev_btn_text = "Previous",
   done_btn_text = "Done",
@@ -148,6 +167,10 @@ build_config <- function(
     disableButtons = normalize_buttons(disable_buttons),
     showProgress = show_progress,
     progressText = progress_text,
+    # "text" is today's behaviour and is never sent, so a tour that never
+    # touches `progress_style` gets a byte-identical config payload to
+    # pre-2.1.0 cicerone
+    progressStyle = if (!identical(progress_style, "text")) progress_style,
     nextBtnText = next_btn_text,
     prevBtnText = prev_btn_text,
     doneBtnText = done_btn_text,
@@ -177,6 +200,7 @@ build_popover <- function(
   disable_buttons = NULL,
   show_progress = NULL,
   progress_text = NULL,
+  progress_style = NULL,
   next_btn_text = NULL,
   prev_btn_text = NULL,
   done_btn_text = NULL,
@@ -203,6 +227,10 @@ build_popover <- function(
     disableButtons = normalize_buttons(disable_buttons),
     showProgress = show_progress,
     progressText = progress_text,
+    # unlike the config-level field, a step-level override is sent
+    # verbatim (including "text"), since it is what tells JS to override
+    # the tour's default for this one step rather than inherit it
+    progressStyle = progress_style,
     nextBtnText = next_btn_text,
     prevBtnText = prev_btn_text,
     doneBtnText = done_btn_text,
