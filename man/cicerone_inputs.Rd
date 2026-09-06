@@ -38,13 +38,16 @@ overlay click, or anything else). \code{completed} is \code{TRUE} exactly when
 \code{"hint_dismissed"}, \code{"hint_button"}, \code{"advance"} (a step's
 \code{advance_on}/\code{advance_when} fired, see \link{Cicerone}'s \code{step()}),
 \code{"start_failed"} (the tour is active but rendered no popover one frame
-after \verb{$start()}; not retried automatically), or \code{"anchor_timeout"} (a
+after \verb{$start()}; not retried automatically), \code{"anchor_timeout"} (a
 step's \code{wait_for_visible} timed out; the tour moves to the step anyway
-unless \code{skip_missing_element} applies). \code{element} is the id of the
-event's associated element (the highlighted step's element for tour
-events, the \code{advance_on} element for an \code{"advance"} event triggered by
-it, the hint's element for hint events), or \code{NULL}. \code{time} is an
-ISO-8601 string.
+unless \code{skip_missing_element} applies), or \code{"no_visible_steps"}
+(\verb{$start()} was called but every step's \code{show_if} predicate returned
+\code{false}; the tour does not start, \code{index} and \code{element} are \code{NULL},
+\code{total_steps} is \code{0}, see \link{Cicerone}'s \code{step()}). \code{element} is the id
+of the event's associated element (the highlighted step's element for
+tour events, the \code{advance_on} element for an \code{"advance"} event
+triggered by it, the hint's element for hint events), or \code{NULL}.
+\code{time} is an ISO-8601 string.
 }
 
 \section{Hint inputs}{

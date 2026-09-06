@@ -296,6 +296,20 @@ Cicerone <- R6::R6Class(
 #' not just exist but have a non-zero size, before moving to it. Overrides
 #' the tour-level `wait_for_visible` (`Cicerone$new(wait_for_visible = )`)
 #' for this step only; see there for the full behaviour.
+#' @param show_if A JavaScript predicate `(step, opts) => boolean`,
+#' evaluated for every step when the tour is `$start()`-ed. A step whose
+#' predicate returns `false` is skipped for that run: it does not count
+#' towards `total_steps` and is not highlighted. Predicates are
+#' re-evaluated on every `$start()` (not once at `$init()`), so a
+#' predicate that reads live DOM/input state (e.g.
+#' `"(step, opts) => document.querySelector('#x').checked"`) can show a
+#' different set of steps on different runs. A predicate that throws is
+#' treated as `true` (the step is shown) and logged with `console.warn`.
+#' If `$start(step = )` requests a step that `show_if` removes, the tour
+#' starts at the next visible step after it instead; if none of the
+#' steps from that point on are visible, the tour does not start and
+#' `{id}_cicerone_event` fires once with `type = "no_visible_steps"` (see
+#' `?cicerone_inputs`).
 #' @param data A named list of arbitrary data attached to the step,
 #' available to JavaScript callbacks as `step.data`.
     step = function(el = NULL, title = NULL, description = NULL, position = NULL,
@@ -312,6 +326,7 @@ Cicerone <- R6::R6Class(
       disable_active_interaction = NULL, advance_on_click = NULL,
       skip_missing_element = NULL, wait_for_element = NULL,
       advance_on = NULL, advance_when = NULL, wait_for_visible = NULL,
+      show_if = NULL,
       data = NULL) {
 
       if(!is.null(is_id))
@@ -379,6 +394,7 @@ Cicerone <- R6::R6Class(
         advanceOn = normalize_advance_on(advance_on),
         advanceWhen = validate_advance_when(advance_when),
         waitForVisible = wait_for_visible,
+        showIf = validate_show_if(show_if),
         data = data
       ))
 
@@ -405,6 +421,7 @@ Cicerone <- R6::R6Class(
       )
 
       private$run_once <- run_once
+      private$initialized <- TRUE
       session$sendCustomMessage("cicerone-init", opts)
       invisible(self)
     },
@@ -626,7 +643,191 @@ Cicerone <- R6::R6Class(
 #' Retrieve the list of steps as they will be sent to driver.js.
     get_steps = function(){
       private$steps
+    },
+# --- WP4 begin: mutable tours ---
+#' @details
+#' Send the current list of steps (built by `$step()`) to the browser
+#' and replace whatever steps the live tour is driving. Typically
+#' paired with `$clear_steps()`:
+#' `tour$clear_steps()$step(...)$step(...)$set_steps()`. Best called
+#' between tours (before `$start()`), not while one is active: driver.js
+#' resets its live position when steps are replaced. Requires `$init()`
+#' to have already been called -- there is no live tour to update
+#' otherwise.
+#'
+#' @param session A valid Shiny session if `NULL` the function
+#' attempts to get the session with [shiny::getDefaultReactiveDomain()].
+    set_steps = function(session = NULL){
+      if(!private$initialized)
+        stop(
+          "`$set_steps()` requires `$init()` to have been called first",
+          call. = FALSE
+        )
+
+      if(is.null(session))
+        session <- shiny::getDefaultReactiveDomain()
+
+      session$sendCustomMessage(
+        "cicerone-set-steps",
+        list(id = private$id, steps = private$steps)
+      )
+      invisible(self)
+    },
+#' @details
+#' Empty this tour's list of steps, so subsequent `$step()` calls start
+#' a fresh list. Only changes what `$set_steps()`/`$init()` will send
+#' next; the live browser-side tour, if any, is untouched until one of
+#' those is also called. Chainable, see `$set_steps()`.
+    clear_steps = function(){
+      private$steps <- list()
+      invisible(self)
+    },
+#' @details
+#' Update this tour's configuration after `$init()`, without rebuilding
+#' the tour. Accepts the same named arguments as `$new()` (minus `id`,
+#' `mathjax`, and the deprecated pre-2.0.0 aliases); only the arguments
+#' you actually pass are sent, and only those are changed -- anything
+#' you leave as `NULL` (the default for every argument here, unlike
+#' `$new()`) is left exactly as it already is. Steps are unaffected; use
+#' `$set_steps()` for those.
+#'
+#' @param animate Whether to animate or not.
+#' @param allow_close Whether clicking on the overlay should close the tour.
+#' @param overlay_color Color of the page overlay, e.g.: `"#000"`.
+#' @param overlay_opacity Opacity of the page overlay, between 0 and 1.
+#' @param overlay_click_behavior What clicking the overlay does: `"close"`,
+#' `"nextStep"`, or a string of JavaScript defining a custom handler.
+#' @param smooth_scroll Whether to smooth scroll to the highlighted element.
+#' @param allow_scroll Whether the page can be scrolled while a tour is
+#' active, set to `FALSE` to lock body scroll.
+#' @param stage_padding Distance between the highlighted element and the
+#' edge of the cutout, in pixels.
+#' @param stage_radius Corner radius of the cutout around the highlighted
+#' element, in pixels.
+#' @param keyboard_control Allow controlling through keyboard (escape
+#' to close, arrow keys to move).
+#' @param popover_class Class added to all popovers, for custom styling.
+#' @param popover_offset Distance between the popover and the highlighted
+#' element, in pixels.
+#' @param show_btns Whether to show control buttons in the footer. Either
+#' `TRUE`/`FALSE`, or a character vector of buttons to show among
+#' `"next"`, `"previous"`, and `"close"`.
+#' @param next_btn_text Next button text.
+#' @param prev_btn_text Previous button text.
+#' @param done_btn_text Text on the final button.
+#' @param exclusive Whether starting this tour first destroys every other
+#' currently active [Cicerone] tour. See `$new()`.
+#' @param wait_for_visible Milliseconds to wait, before starting or
+#' moving to a step, for that step's element to have a non-zero size.
+#' See `$new()`.
+#' @param disable_active_interaction Whether to disable interaction with
+#' the highlighted element.
+#' @param advance_on_click Whether clicking the highlighted element
+#' advances the tour.
+#' @param skip_missing_element Whether to skip steps whose element is
+#' not found on the page.
+#' @param wait_for_element Milliseconds to wait for a step's element to
+#' appear before giving up.
+#' @param disable_buttons Character vector of buttons to render disabled,
+#' among `"next"`, `"previous"`, and `"close"`.
+#' @param show_progress Whether to show tour progress text in the popover
+#' (e.g.: `"2 of 5"`).
+#' @param progress_text Template for the progress text, e.g.:
+#' `"{{current}} of {{total}}"`.
+#' @param progress_style Progress indicator style: `"text"` (the
+#' default, e.g.: `"2 of 5"`), `"bar"`, or `"dots"`, themable with
+#' [cicerone_theme()]. `"bar"`/`"dots"` force `show_progress` on
+#' regardless of the `show_progress` argument.
+#' @param duration Animation duration in milliseconds.
+#' @param on_popover_render JavaScript function called when the popover
+#' is rendered, receives `(popover, opts)`.
+#' @param on_highlight_started,on_highlighted,on_deselected JavaScript
+#' functions called around highlighting of every step.
+#' @param on_destroy_started,on_destroyed JavaScript functions called
+#' around tour destruction.
+#' @param on_next_click,on_prev_click,on_close_click,on_done_click
+#' JavaScript functions called on button clicks. When `on_next_click`
+#' or `on_prev_click` is set, cicerone still fires the corresponding
+#' Shiny event and advances the tour, unless the callback returns
+#' `false`.
+#' @param session A valid Shiny session if `NULL` the function
+#' attempts to get the session with [shiny::getDefaultReactiveDomain()].
+    set_config = function(
+      animate = NULL, overlay_color = NULL, overlay_opacity = NULL,
+      allow_close = NULL, overlay_click_behavior = NULL,
+      smooth_scroll = NULL, allow_scroll = NULL,
+      stage_padding = NULL, stage_radius = NULL,
+      keyboard_control = NULL,
+      disable_active_interaction = NULL, advance_on_click = NULL,
+      skip_missing_element = NULL, wait_for_element = NULL,
+      popover_class = NULL, popover_offset = NULL,
+      show_btns = NULL, disable_buttons = NULL,
+      show_progress = NULL, progress_text = NULL, progress_style = NULL,
+      next_btn_text = NULL, prev_btn_text = NULL, done_btn_text = NULL,
+      duration = NULL,
+      on_popover_render = NULL,
+      on_highlight_started = NULL, on_highlighted = NULL,
+      on_deselected = NULL,
+      on_destroy_started = NULL, on_destroyed = NULL,
+      on_next_click = NULL, on_prev_click = NULL,
+      on_close_click = NULL, on_done_click = NULL,
+      exclusive = NULL, wait_for_visible = NULL,
+      session = NULL
+    ){
+      if(is.null(session))
+        session <- shiny::getDefaultReactiveDomain()
+
+      if(!is.null(progress_style))
+        progress_style <- match.arg(progress_style, progress_styles)
+      show_progress <- resolve_show_progress(progress_style, show_progress)
+
+      globals <- build_config(
+        animate = animate,
+        overlay_color = overlay_color,
+        overlay_opacity = overlay_opacity,
+        smooth_scroll = smooth_scroll,
+        allow_close = allow_close,
+        allow_scroll = allow_scroll,
+        overlay_click_behavior = overlay_click_behavior,
+        stage_padding = stage_padding,
+        stage_radius = stage_radius,
+        allow_keyboard_control = keyboard_control,
+        disable_active_interaction = disable_active_interaction,
+        advance_on_click = advance_on_click,
+        skip_missing_element = skip_missing_element,
+        wait_for_element = wait_for_element,
+        popover_class = popover_class,
+        popover_offset = popover_offset,
+        show_buttons = show_btns,
+        disable_buttons = disable_buttons,
+        show_progress = show_progress,
+        progress_text = progress_text,
+        progress_style = progress_style,
+        next_btn_text = next_btn_text,
+        prev_btn_text = prev_btn_text,
+        done_btn_text = done_btn_text,
+        duration = duration,
+        on_popover_render = on_popover_render,
+        on_highlight_started = on_highlight_started,
+        on_highlighted = on_highlighted,
+        on_deselected = on_deselected,
+        on_destroy_started = on_destroy_started,
+        on_destroyed = on_destroyed,
+        on_next_click = on_next_click,
+        on_prev_click = on_prev_click,
+        on_close_click = on_close_click,
+        on_done_click = on_done_click,
+        exclusive = exclusive,
+        wait_for_visible = wait_for_visible
+      )
+
+      session$sendCustomMessage(
+        "cicerone-set-config",
+        list(id = private$id, globals = globals)
+      )
+      invisible(self)
     }
+# --- WP4 end ---
   ),
   private = list(
     steps = list(),
@@ -634,6 +835,9 @@ Cicerone <- R6::R6Class(
     id = NULL,
     runs = 0L,
     run_once = FALSE,
-    mathjax = FALSE
+    mathjax = FALSE,
+    # --- WP4 begin ---
+    initialized = FALSE
+    # --- WP4 end ---
   )
 )

@@ -173,6 +173,21 @@ guide_anchor_timeout <- Cicerone$
     wait_for_visible = 300
   )
 # --- WP7 end ---
+# --- WP4 begin: mutable tours / show_if fixtures ---
+
+# `$set_steps()`/`$clear_steps()`/`$set_config()` and `show_if`. Step 2's
+# `show_if` reads the `#show_step2` checkbox live, so toggling it between
+# two `$start()`s (with an intervening `$reset()`) proves predicates are
+# re-evaluated fresh each time, not cached from the first `$init()`.
+guide_steps <- Cicerone$
+  new(id = "e2e_steps")$
+  step(el = "el1", title = "Steps 1", description = "First element.")$
+  step(
+    el = "el2", title = "Steps 2", description = "Second element.",
+    show_if = "(step, opts) => document.querySelector('#show_step2').checked"
+  )$
+  step(el = "el3", title = "Steps 3", description = "Third element.")
+# --- WP4 end ---
 
 ui <- fluidPage(
   use_cicerone(),
@@ -229,8 +244,16 @@ ui <- fluidPage(
   actionButton("btn_start_anchor_timeout", "Start anchor-timeout tour"),
   actionButton("btn_wait_late", "wait_for_element(#late)"),
   actionButton("btn_wait_never", "wait_for_element(#never)"),
-  actionButton("btn_wait_in_tab2", "wait_for_element(#in_tab2)")
+  actionButton("btn_wait_in_tab2", "wait_for_element(#in_tab2)"),
   # --- WP7 end ---
+
+  # --- WP4 begin: mutable tours / show_if fixtures ---
+  checkboxInput("show_step2", "Show step 2", value = FALSE),
+  actionButton("btn_start_steps", "Start steps tour"),
+  actionButton("btn_reset_steps", "Reset steps tour"),
+  actionButton("btn_rebuild_steps", "Rebuild to one step"),
+  actionButton("btn_set_overlay_opacity", "Set overlay opacity 0.1")
+  # --- WP4 end ---
 )
 
 server <- function(input, output, session) {
@@ -253,6 +276,9 @@ server <- function(input, output, session) {
   guide_anchor_ok$init()
   guide_anchor_timeout$init()
   # --- WP7 end ---
+  # --- WP4 begin: mutable tours / show_if init ---
+  guide_steps$init()
+  # --- WP4 end ---
 
   observeEvent(input$btn_start, guide$start())
   observeEvent(input$btn_reset, guide$reset())
@@ -300,6 +326,19 @@ server <- function(input, output, session) {
     wait_for_element("#in_tab2", timeout = 500, id = "in_tab2")
   })
   # --- WP7 end ---
+  # --- WP4 begin: mutable tours / show_if observers ---
+  observeEvent(input$btn_start_steps, guide_steps$start())
+  observeEvent(input$btn_reset_steps, guide_steps$reset())
+  observeEvent(input$btn_rebuild_steps, {
+    guide_steps$
+      clear_steps()$
+      step(el = "el1", title = "Rebuilt to one step")$
+      set_steps()
+  })
+  observeEvent(input$btn_set_overlay_opacity, {
+    guide_steps$set_config(overlay_opacity = 0.1)
+  })
+  # --- WP4 end ---
 
   output$out_state <- renderPrint(input[["e2e_cicerone_state"]])
   output$out_next <- renderPrint(input[["e2e_cicerone_next"]])

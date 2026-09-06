@@ -136,6 +136,31 @@
   this race in three consecutive runs; see the WP7 report) and
   `"anchor_timeout"` (see `wait_for_visible` above).
 
+- New `Cicerone$set_steps()`: sends the current `$step()`-built list to
+  the browser and replaces whatever steps the live tour is driving.
+  Typically paired with the new `$clear_steps()` (empties the list,
+  chainable): `tour$clear_steps()$step(...)$step(...)$set_steps()`.
+  Errors if called before `$init()` (there is no live tour to update).
+- New `Cicerone$set_config()`: updates a live tour's configuration after
+  `$init()` without rebuilding it, accepting the same named arguments as
+  `$new()`. Only the arguments you pass are sent and changed; everything
+  else is left as it already is. Steps are unaffected -- use
+  `$set_steps()` for those.
+- New `step(show_if = )`: a JavaScript predicate
+  (`"(step, opts) => boolean"`), re-evaluated against every step on each
+  `$start()` (not once at `$init()`), so a predicate reading live
+  DOM/input state can show a different set of steps on different runs.
+  A step whose predicate returns `false` is skipped for that run and
+  does not count towards `total_steps`. A predicate that throws is
+  treated as `true` and logged with `console.warn`. New `_event` type
+  `"no_visible_steps"`: every step's `show_if` returned `false`, so the
+  tour did not start.
+- Internal: the per-step/per-config wrapping logic `cicerone-init` used
+  inline is now `prepareSteps()`/`prepareConfig()` in a new
+  `srcjs/exts/steps.js`, shared with `cicerone-set-steps`/
+  `cicerone-set-config` and with `show_if` filtering in `cicerone-start`.
+  No user-facing change.
+
 # cicerone 2.0.0
 
 Major upgrade: the bundled driver.js was updated from 0.9.8 to 1.8.0, a

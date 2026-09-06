@@ -62,6 +62,12 @@ export let allSteps = {};
 // `id` for the wrap* closures.
 export const prepareSteps = (id, steps, config) => {
   (steps || []).forEach((step) => {
+    // `show_if` (R) arrives as a string of JavaScript, same as any other
+    // hook; unlike the hooks in STEP_HOOKS it is read by `cicerone-start`
+    // (tour.js), not driver.js itself, so it is not one of driver.js's
+    // own callback slots and is evaluated here on its own.
+    step.showIf = evalFunction(step.showIf);
+
     // step-level onHighlightStarted overrides the config-level hook in
     // driver.js, so any step that defines one (directly or via tab
     // activation) must run the stale-highlight cleanup itself
@@ -295,6 +301,18 @@ export const prepareConfig = (id, config) => {
 
       Shiny.setInputValue("cicerone_reset", true, { priority: "event" });
       emitInput(id, "reset", true);
+
+      // --- WP4 begin: restore the full step list ---
+      // `cicerone-start`'s `show_if` filtering (tour.js) narrows the live
+      // driver's steps with `setSteps()` before drive(); restore the full
+      // prepared list here so the next `$start()` re-evaluates every
+      // predicate fresh (e.g. a checkbox a predicate reads may have
+      // changed since this run). Safe to call from inside onDestroyed:
+      // driver.js's own `h()` has already reset internal state by the
+      // time this hook runs, and `setSteps()`'s own `resetState()` call
+      // is then a no-op on top of that.
+      if (drivers[id]) drivers[id].setSteps(allSteps[id] || []);
+      // --- WP4 end ---
     });
   }
 

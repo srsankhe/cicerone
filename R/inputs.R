@@ -32,13 +32,16 @@
 #' `"hint_dismissed"`, `"hint_button"`, `"advance"` (a step's
 #' `advance_on`/`advance_when` fired, see [Cicerone]'s `step()`),
 #' `"start_failed"` (the tour is active but rendered no popover one frame
-#' after `$start()`; not retried automatically), or `"anchor_timeout"` (a
+#' after `$start()`; not retried automatically), `"anchor_timeout"` (a
 #' step's `wait_for_visible` timed out; the tour moves to the step anyway
-#' unless `skip_missing_element` applies). `element` is the id of the
-#' event's associated element (the highlighted step's element for tour
-#' events, the `advance_on` element for an `"advance"` event triggered by
-#' it, the hint's element for hint events), or `NULL`. `time` is an
-#' ISO-8601 string.
+#' unless `skip_missing_element` applies), or `"no_visible_steps"`
+#' (`$start()` was called but every step's `show_if` predicate returned
+#' `false`; the tour does not start, `index` and `element` are `NULL`,
+#' `total_steps` is `0`, see [Cicerone]'s `step()`). `element` is the id
+#' of the event's associated element (the highlighted step's element for
+#' tour events, the `advance_on` element for an `"advance"` event
+#' triggered by it, the hint's element for hint events), or `NULL`.
+#' `time` is an ISO-8601 string.
 #'
 #' @section Hint inputs:
 #' | Input | Event | Payload | Fires |

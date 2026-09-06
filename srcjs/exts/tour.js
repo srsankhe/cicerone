@@ -53,11 +53,87 @@ Shiny.addCustomMessageHandler("cicerone-init", function (opts) {
   drivers[id] = Driver(config);
 });
 
+// --- WP4 begin: mutable tours ---
+// `$set_steps()`: rebuild the driver's step list from whatever
+// `private$steps` currently holds R-side (typically after
+// `$clear_steps()$step(...)...`). Always raw (unwrapped) steps -- R never
+// round-trips the wrapped JS closures -- so no idempotency concern here,
+// unlike prepareConfig.
+Shiny.addCustomMessageHandler("cicerone-set-steps", function (opts) {
+  const id = opts.id;
+  if (!drivers[id]) return console.warn("cicerone: no tour", id);
+
+  const prepared = prepareSteps(id, opts.steps || [], drivers[id].getConfig());
+  allSteps[id] = prepared;
+  drivers[id].setSteps(prepared);
+});
+
+// `$set_config()`: merge the supplied globals over the driver's current
+// config and re-apply. driver.js's own `setConfig()` replaces the ENTIRE
+// config with `{...driver.js's hardcoded defaults, ...newConfig}` -- it
+// does NOT merge with the previously live config (see `configure()`/
+// `ne()` in driver.js.mjs: `e={animate:true,...,...t}` on every call).
+// Passing only the newly supplied keys would therefore wipe every other
+// key already set (our wrapped hooks, `exclusive`, `waitForVisible`, and
+// `steps`, none of which are among driver.js's own defaults) back to
+// driver.js's stock values. Spreading the full current `getConfig()`
+// first avoids that.
+//
+// `steps` is deliberately restored from the authoritative `allSteps[id]`
+// list (not whatever subset `config.steps` happened to hold, e.g. a
+// `show_if`-filtered list from the last `cicerone-start`) IN THE SAME
+// object passed to `setConfig()`, rather than via a separate
+// `drivers[id].setSteps()` call afterward. `setSteps()` is not just "set
+// the steps key": it is `d(); t.resetState(); t.setConfig(...)` (see
+// driver.js.mjs) -- it wipes ALL live state first, including
+// `activeIndex` and the current overlay SVG reference. Calling it
+// mid-tour would silently orphan the visible overlay/popover (a new one
+// gets created on the next highlight, reading the updated config, but
+// the old one is never removed) and would break `moveNext()`/
+// `movePrevious()` until the next highlight resets `activeIndex` (both
+// read `getState("activeIndex")`, `undefined` right after
+// `resetState()`, and no-op). Plain `setConfig()` (`configure()`) touches
+// only the config store, never live state, so folding `steps` into one
+// `setConfig()` call keeps the tour exactly where it was.
+Shiny.addCustomMessageHandler("cicerone-set-config", function (opts) {
+  const id = opts.id;
+  if (!drivers[id]) return console.warn("cicerone: no tour", id);
+
+  const merged = Object.assign({}, drivers[id].getConfig());
+  Object.assign(merged, opts.globals || {});
+  merged.steps = allSteps[id] || merged.steps || [];
+
+  prepareConfig(id, merged);
+  drivers[id].setConfig(merged);
+
+  // driver.js only ever sets the overlay `<path>`'s `style.fill`/
+  // `style.opacity` once, at creation time (`M()` in driver.js.mjs);
+  // every later highlight/refresh only rewrites its `d` attribute (`A()`),
+  // never fill/opacity. A mid-tour `overlay_color`/`overlay_opacity`
+  // change would otherwise silently not take visible effect until the
+  // tour ends and a new one starts (which recreates the overlay from
+  // scratch). Patch the current overlay's style directly here instead, so
+  // it takes effect immediately -- exactly what a fresh creation would
+  // have set. `getState()` (unlike the config store) is per-Driver-
+  // instance, so this only ever touches `id`'s own overlay.
+  const overlaySvg = drivers[id].getState("__overlaySvg");
+  const overlayPath = overlaySvg && overlaySvg.firstElementChild;
+  if (overlayPath) {
+    if (typeof merged.overlayColor === "string") {
+      overlayPath.style.fill = merged.overlayColor;
+    }
+    if (typeof merged.overlayOpacity !== "undefined") {
+      overlayPath.style.opacity = String(merged.overlayOpacity);
+    }
+  }
+});
+// --- WP4 end ---
+
 Shiny.addCustomMessageHandler("cicerone-start", function (opts) {
   const id = opts.id;
   if (!drivers[id]) return console.warn("cicerone: no tour", id);
   const driver = drivers[id];
-  const config = driver.getConfig();
+  let config = driver.getConfig();
 
   // --- WP7 begin: exclusive ---
   // `exclusive` defaults to TRUE R-side (see build_config()); anything
@@ -73,6 +149,63 @@ Shiny.addCustomMessageHandler("cicerone-start", function (opts) {
     });
   }
   // --- WP7 end ---
+
+  // --- WP4 begin: show_if filtering ---
+  // Evaluate every step's `show_if` predicate against the FULL prepared
+  // list (`allSteps[id]`, not `config.steps` -- a previous drive() may
+  // have already narrowed `config.steps` to a filtered subset, and
+  // filtering an already-filtered list would compound instead of
+  // re-evaluate fresh), then push the result through `setSteps()` so
+  // driver.js only ever drives the visible steps. `setSteps()` preserves
+  // every other config key (it internally calls `setConfig({
+  // ...getConfig(), steps})`, see the cicerone-set-config comment above),
+  // so it is safe to call unconditionally here, including for a tour
+  // with no `show_if` steps at all (filtered === full in that case).
+  //
+  // The requested 0-based index (against the FULL list) is mapped to its
+  // position in the filtered list: a filtered-out requested step starts
+  // at the next visible one after it (by original position). If none of
+  // the full list is visible from the requested index onward, no tour is
+  // driven; `no_visible_steps` is emitted instead. Restored to the full
+  // list in the wrapped `onDestroyed` (steps.js's prepareConfig) so the
+  // next `$start()` re-evaluates every predicate fresh (e.g. against a
+  // checkbox that changed since the last run).
+  const full = allSteps[id] || config.steps || [];
+  const requestedIndex = typeof opts.step === "number" ? opts.step : 0;
+  const filtered = [];
+  const originalIndexes = [];
+  full.forEach((step, i) => {
+    let visible = true;
+    if (typeof step.showIf === "function") {
+      try {
+        visible = !!step.showIf(step, { config, driver, index: i });
+      } catch (e) {
+        visible = true;
+        console.warn("cicerone: show_if predicate threw; showing step", i, e);
+      }
+    }
+    if (visible) {
+      filtered.push(step);
+      originalIndexes.push(i);
+    }
+  });
+
+  driver.setSteps(filtered);
+  config = driver.getConfig();
+
+  if (filtered.length === 0) {
+    emitEvent(id, "no_visible_steps", {
+      index: null,
+      highlighted: null,
+      total_steps: 0,
+    });
+    return;
+  }
+
+  let mappedIndex = originalIndexes.findIndex((orig) => orig >= requestedIndex);
+  if (mappedIndex === -1) mappedIndex = filtered.length - 1;
+  opts.step = mappedIndex;
+  // --- WP4 end ---
 
   const driveNow = () => {
     driver.drive(opts.step);

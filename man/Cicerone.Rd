@@ -61,6 +61,9 @@ index, possibly \code{undefined}). For example:
     \item \href{#method-Cicerone-get_ended}{\code{Cicerone$get_ended()}}
     \item \href{#method-Cicerone-get_id}{\code{Cicerone$get_id()}}
     \item \href{#method-Cicerone-get_steps}{\code{Cicerone$get_steps()}}
+    \item \href{#method-Cicerone-set_steps}{\code{Cicerone$set_steps()}}
+    \item \href{#method-Cicerone-clear_steps}{\code{Cicerone$clear_steps()}}
+    \item \href{#method-Cicerone-set_config}{\code{Cicerone$set_config()}}
     \item \href{#method-Cicerone-clone}{\code{Cicerone$clone()}}
   }
 }
@@ -263,6 +266,7 @@ argument of \code{step()} below, which overrides this default.}
   advance_on = NULL,
   advance_when = NULL,
   wait_for_visible = NULL,
+  show_if = NULL,
   data = NULL
 )}
     \if{html}{\out{</div>}}
@@ -346,6 +350,20 @@ mechanism completes the tour (\verb{_ended$reason = "done"}), as does
 not just exist but have a non-zero size, before moving to it. Overrides
 the tour-level \code{wait_for_visible} (\code{Cicerone$new(wait_for_visible = )})
 for this step only; see there for the full behaviour.}
+      \item{\code{show_if}}{A JavaScript predicate \verb{(step, opts) => boolean},
+evaluated for every step when the tour is \verb{$start()}-ed. A step whose
+predicate returns \code{false} is skipped for that run: it does not count
+towards \code{total_steps} and is not highlighted. Predicates are
+re-evaluated on every \verb{$start()} (not once at \verb{$init()}), so a
+predicate that reads live DOM/input state (e.g.
+\code{"(step, opts) => document.querySelector('#x').checked"}) can show a
+different set of steps on different runs. A predicate that throws is
+treated as \code{true} (the step is shown) and logged with \code{console.warn}.
+If \verb{$start(step = )} requests a step that \code{show_if} removes, the tour
+starts at the next visible step after it instead; if none of the
+steps from that point on are visible, the tour does not start and
+\verb{\{id\}_cicerone_event} fires once with \code{type = "no_visible_steps"} (see
+\code{?cicerone_inputs}).}
       \item{\code{data}}{A named list of arbitrary data attached to the step,
 available to JavaScript callbacks as \code{step.data}.}
     }
@@ -774,6 +792,177 @@ with \code{reason} (one of \code{"done"}, \code{"close"}, \code{"programmatic"},
   }
   \subsection{Details}{
     Retrieve the list of steps as they will be sent to driver.js.
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-Cicerone-set_steps"></a>}}
+\if{latex}{\out{\hypertarget{method-Cicerone-set_steps}{}}}
+\subsection{\code{Cicerone$set_steps()}}{
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{Cicerone$set_steps(session = NULL)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{session}}{A valid Shiny session if \code{NULL} the function
+attempts to get the session with \code{\link[shiny:getDefaultReactiveDomain]{shiny::getDefaultReactiveDomain()}}.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Details}{
+    Send the current list of steps (built by \verb{$step()}) to the browser
+and replace whatever steps the live tour is driving. Typically
+paired with \verb{$clear_steps()}:
+\code{tour$clear_steps()$step(...)$step(...)$set_steps()}. Best called
+between tours (before \verb{$start()}), not while one is active: driver.js
+resets its live position when steps are replaced. Requires \verb{$init()}
+to have already been called -- there is no live tour to update
+otherwise.
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-Cicerone-clear_steps"></a>}}
+\if{latex}{\out{\hypertarget{method-Cicerone-clear_steps}{}}}
+\subsection{\code{Cicerone$clear_steps()}}{
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{Cicerone$clear_steps()}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Details}{
+    Empty this tour's list of steps, so subsequent \verb{$step()} calls start
+a fresh list. Only changes what \verb{$set_steps()}/\verb{$init()} will send
+next; the live browser-side tour, if any, is untouched until one of
+those is also called. Chainable, see \verb{$set_steps()}.
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-Cicerone-set_config"></a>}}
+\if{latex}{\out{\hypertarget{method-Cicerone-set_config}{}}}
+\subsection{\code{Cicerone$set_config()}}{
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{Cicerone$set_config(
+  animate = NULL,
+  overlay_color = NULL,
+  overlay_opacity = NULL,
+  allow_close = NULL,
+  overlay_click_behavior = NULL,
+  smooth_scroll = NULL,
+  allow_scroll = NULL,
+  stage_padding = NULL,
+  stage_radius = NULL,
+  keyboard_control = NULL,
+  disable_active_interaction = NULL,
+  advance_on_click = NULL,
+  skip_missing_element = NULL,
+  wait_for_element = NULL,
+  popover_class = NULL,
+  popover_offset = NULL,
+  show_btns = NULL,
+  disable_buttons = NULL,
+  show_progress = NULL,
+  progress_text = NULL,
+  progress_style = NULL,
+  next_btn_text = NULL,
+  prev_btn_text = NULL,
+  done_btn_text = NULL,
+  duration = NULL,
+  on_popover_render = NULL,
+  on_highlight_started = NULL,
+  on_highlighted = NULL,
+  on_deselected = NULL,
+  on_destroy_started = NULL,
+  on_destroyed = NULL,
+  on_next_click = NULL,
+  on_prev_click = NULL,
+  on_close_click = NULL,
+  on_done_click = NULL,
+  exclusive = NULL,
+  wait_for_visible = NULL,
+  session = NULL
+)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{animate}}{Whether to animate or not.}
+      \item{\code{overlay_color}}{Color of the page overlay, e.g.: \code{"#000"}.}
+      \item{\code{overlay_opacity}}{Opacity of the page overlay, between 0 and 1.}
+      \item{\code{allow_close}}{Whether clicking on the overlay should close the tour.}
+      \item{\code{overlay_click_behavior}}{What clicking the overlay does: \code{"close"},
+\code{"nextStep"}, or a string of JavaScript defining a custom handler.}
+      \item{\code{smooth_scroll}}{Whether to smooth scroll to the highlighted element.}
+      \item{\code{allow_scroll}}{Whether the page can be scrolled while a tour is
+active, set to \code{FALSE} to lock body scroll.}
+      \item{\code{stage_padding}}{Distance between the highlighted element and the
+edge of the cutout, in pixels.}
+      \item{\code{stage_radius}}{Corner radius of the cutout around the highlighted
+element, in pixels.}
+      \item{\code{keyboard_control}}{Allow controlling through keyboard (escape
+to close, arrow keys to move).}
+      \item{\code{disable_active_interaction}}{Whether to disable interaction with
+the highlighted element.}
+      \item{\code{advance_on_click}}{Whether clicking the highlighted element
+advances the tour.}
+      \item{\code{skip_missing_element}}{Whether to skip steps whose element is
+not found on the page.}
+      \item{\code{wait_for_element}}{Milliseconds to wait for a step's element to
+appear before giving up.}
+      \item{\code{popover_class}}{Class added to all popovers, for custom styling.}
+      \item{\code{popover_offset}}{Distance between the popover and the highlighted
+element, in pixels.}
+      \item{\code{show_btns}}{Whether to show control buttons in the footer. Either
+\code{TRUE}/\code{FALSE}, or a character vector of buttons to show among
+\code{"next"}, \code{"previous"}, and \code{"close"}.}
+      \item{\code{disable_buttons}}{Character vector of buttons to render disabled,
+among \code{"next"}, \code{"previous"}, and \code{"close"}.}
+      \item{\code{show_progress}}{Whether to show tour progress text in the popover
+(e.g.: \code{"2 of 5"}).}
+      \item{\code{progress_text}}{Template for the progress text, e.g.:
+\code{"{{current}} of {{total}}"}.}
+      \item{\code{progress_style}}{Progress indicator style: \code{"text"} (the
+default, e.g.: \code{"2 of 5"}), \code{"bar"}, or \code{"dots"}, themable with
+\code{\link[=cicerone_theme]{cicerone_theme()}}. \code{"bar"}/\code{"dots"} force \code{show_progress} on
+regardless of the \code{show_progress} argument.}
+      \item{\code{next_btn_text}}{Next button text.}
+      \item{\code{prev_btn_text}}{Previous button text.}
+      \item{\code{done_btn_text}}{Text on the final button.}
+      \item{\code{duration}}{Animation duration in milliseconds.}
+      \item{\code{on_popover_render}}{JavaScript function called when the popover
+is rendered, receives \verb{(popover, opts)}.}
+      \item{\code{on_highlight_started, on_highlighted, on_deselected}}{JavaScript
+functions called around highlighting of every step.}
+      \item{\code{on_destroy_started, on_destroyed}}{JavaScript functions called
+around tour destruction.}
+      \item{\code{on_next_click, on_prev_click, on_close_click, on_done_click}}{JavaScript functions called on button clicks. When \code{on_next_click}
+or \code{on_prev_click} is set, cicerone still fires the corresponding
+Shiny event and advances the tour, unless the callback returns
+\code{false}.}
+      \item{\code{exclusive}}{Whether starting this tour first destroys every other
+currently active \link{Cicerone} tour. See \verb{$new()}.}
+      \item{\code{wait_for_visible}}{Milliseconds to wait, before starting or
+moving to a step, for that step's element to have a non-zero size.
+See \verb{$new()}.}
+      \item{\code{session}}{A valid Shiny session if \code{NULL} the function
+attempts to get the session with \code{\link[shiny:getDefaultReactiveDomain]{shiny::getDefaultReactiveDomain()}}.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Details}{
+    Update this tour's configuration after \verb{$init()}, without rebuilding
+the tour. Accepts the same named arguments as \verb{$new()} (minus \code{id},
+\code{mathjax}, and the deprecated pre-2.0.0 aliases); only the arguments
+you actually pass are sent, and only those are changed -- anything
+you leave as \code{NULL} (the default for every argument here, unlike
+\verb{$new()}) is left exactly as it already is. Steps are unaffected; use
+\verb{$set_steps()} for those.
   }
 }
 
