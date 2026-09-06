@@ -256,6 +256,7 @@ record_tour <- function() {
   # cursor pulse + click "Start tour" -- the click itself must be visible
   pulse_cursor(app, "#btn_start", pulse = TRUE)
   capture_frames(app, dir, ctr, duration_ms = 70, interval_ms = 70) # pulse-visible frame
+  remove_cursor(app) # clear it now -- it would otherwise sit stale through step 1's hold
   app$click("btn_start")
   app$wait_for_js("document.querySelector('.driver-popover') !== null")
   Sys.sleep(0.45) # settle before capturing (fix #2)
@@ -269,6 +270,7 @@ record_tour <- function() {
   # (media-ux-review.md #3).
   pulse_cursor(app, "#name", pulse = TRUE)
   capture_frames(app, dir, ctr, duration_ms = 70, interval_ms = 70) # pulse-visible frame
+  remove_cursor(app) # driver.js's own stage box already frames #name; no need to keep the dot
   app$run_js("document.querySelector('#name').value = 'A';")
   capture_frames(app, dir, ctr, duration_ms = 120, interval_ms = 120) # "A" visible
   app$run_js("document.querySelector('#name').value = 'Ada';")
@@ -282,6 +284,7 @@ record_tour <- function() {
 
   pulse_cursor(app, ".driver-popover-next-btn", pulse = TRUE)
   capture_frames(app, dir, ctr, duration_ms = 70, interval_ms = 70) # pulse-visible frame
+  remove_cursor(app) # clear before step 3's hold -- #name's tab is gone, this position is stale
   app$run_js("document.querySelector('.driver-popover-next-btn').click()")
   app$wait_for_js("document.querySelector('.driver-popover') !== null")
   Sys.sleep(0.45) # settle (fix #2)
@@ -289,6 +292,7 @@ record_tour <- function() {
 
   pulse_cursor(app, ".driver-popover-next-btn", pulse = TRUE)
   capture_frames(app, dir, ctr, duration_ms = 70, interval_ms = 70) # pulse-visible frame
+  remove_cursor(app) # clear before the closing hold -- Done's popover is about to vanish
   app$run_js("document.querySelector('.driver-popover-next-btn').click()") # Done
   capture_frames(app, dir, ctr, duration_ms = 500) # closing hold, plain app state
 
@@ -313,6 +317,7 @@ record_advance_on <- function() {
 
   pulse_cursor(app, "#btn_start", pulse = TRUE)
   capture_frames(app, dir, ctr, duration_ms = 70, interval_ms = 70) # pulse-visible frame
+  remove_cursor(app) # clear it now -- it would otherwise sit stale through step 1's hold
   app$click("btn_start")
   app$wait_for_js("document.querySelector('.driver-popover') !== null")
   Sys.sleep(0.45) # settle before capturing (fix #2)
@@ -329,6 +334,7 @@ record_advance_on <- function() {
   # the very first keystroke and no progressive text would ever be seen.
   pulse_cursor(app, "#name", pulse = TRUE)
   capture_frames(app, dir, ctr, duration_ms = 70, interval_ms = 70) # pulse-visible frame
+  remove_cursor(app) # driver.js's own stage box already frames #name; no need to keep the dot
   app$run_js("document.querySelector('#name').value = 'A';")
   capture_frames(app, dir, ctr, duration_ms = 120, interval_ms = 120) # "A" visible
   app$run_js("document.querySelector('#name').value = 'Ad';")
@@ -364,6 +370,7 @@ record_hints <- function() {
 
   pulse_cursor(app, "#btn_hints", pulse = TRUE)
   capture_frames(app, dir, ctr, duration_ms = 70, interval_ms = 70) # pulse-visible frame
+  remove_cursor(app) # clear it now -- it would otherwise sit stale through the beacons' hold
   app$click("btn_hints")
   app$wait_for_js("document.querySelectorAll('.driver-hint').length > 0")
   Sys.sleep(0.45) # settle: let beacons finish animating in (fix #2)
@@ -373,6 +380,7 @@ record_hints <- function() {
 
   pulse_cursor(app, ".driver-hint", pulse = TRUE)
   capture_frames(app, dir, ctr, duration_ms = 70, interval_ms = 70) # pulse-visible frame
+  remove_cursor(app) # clear before the popover's hold -- the beacon itself is now hidden
   app$run_js("document.querySelector('.driver-hint').click()")
   app$wait_for_js("document.querySelector('.driver-popover') !== null")
   Sys.sleep(0.45) # settle (fix #2)
@@ -380,6 +388,7 @@ record_hints <- function() {
 
   pulse_cursor(app, ".driver-popover-next-btn", pulse = TRUE)
   capture_frames(app, dir, ctr, duration_ms = 70, interval_ms = 70) # pulse-visible frame
+  remove_cursor(app) # clear before the dismissed hold -- Got it's popover is about to vanish
   app$run_js("document.querySelector('.driver-popover-next-btn').click()")
   capture_frames(app, dir, ctr, duration_ms = 900) # dismissed, hold (bumped per #10)
 
@@ -400,26 +409,65 @@ record_hints <- function() {
 # `Page.captureScreenshot`'s clip.scale -- a sharper capture of the same
 # CSS-pixel region, independent of any device-scale-factor emulation).
 #
-# Each panel's crop is the union bounding box of `.card` (the tab card
-# being toured), `.driver-popover`, and `.driver-popover-arrow` -- not just
-# the popover alone (media-ux-review.md #7/section 4): the arrow's own
-# rect extends outside `.driver-popover`'s box model (confirmed: it sits
+# Each panel's crop is an *explicit* cliprect, not a selector-union bounding
+# box: left/top/right come from the union of `.card` (the tab card being
+# toured), `.driver-popover`, and `.driver-popover-arrow` (the arrow's own
+# rect extends outside `.driver-popover`'s box model -- confirmed: it sits
 # ~10px above the popover's own top when the popover opens below its
-# target), so naming it explicitly is what keeps `expand` from having to
-# guess which side it's clipped on. This shows the popover in the app's own
-# product context instead of floating alone on a blank background.
+# target), so the tab header and field stay framed. The bottom edge is
+# capped to the popover/arrow's own bottom + `pad_bottom`, instead of
+# `.card`'s bottom: `.card` stretches to fill the page's flex layout, so
+# unioning it wholesale (the pass-1 fix) left ~150-200px of blank card
+# background below the popover in every panel (media-ux-review-2.md #7).
+# `find_selectors_bounds()` (chromote) can only union *all* edges of *all*
+# selectors uniformly, so this asymmetric crop needs its own rect, read via
+# `getBoundingClientRect()` and passed as `screenshot_args$cliprect` --
+# `selector` is set to a harmless placeholder ("html") only so shinytest2's
+# `handle_custom_selector()` doesn't recognize it as "viewport"/
+# "scrollable_area" and overwrite our cliprect with its own.
+panel_cliprect <- function(app, pad_side = 16, pad_bottom = 24) {
+  json <- app$get_js(
+    "JSON.stringify((function() {
+      function box(sel) {
+        var el = document.querySelector(sel);
+        if (!el) return null;
+        var r = el.getBoundingClientRect();
+        return {left: r.left, top: r.top, right: r.right, bottom: r.bottom};
+      }
+      var boxes = ['.card', '.driver-popover', '.driver-popover-arrow']
+        .map(box).filter(function(b) { return b !== null; });
+      var popBoxes = ['.driver-popover', '.driver-popover-arrow']
+        .map(box).filter(function(b) { return b !== null; });
+      return {
+        left: Math.min.apply(null, boxes.map(function(b) { return b.left; })),
+        top: Math.min.apply(null, boxes.map(function(b) { return b.top; })),
+        right: Math.max.apply(null, boxes.map(function(b) { return b.right; })),
+        bottom: Math.max.apply(null, popBoxes.map(function(b) { return b.bottom; }))
+      };
+    })());"
+  )
+  rect <- jsonlite::fromJSON(json)
+  c(
+    rect$left - pad_side,
+    rect$top - pad_side,
+    (rect$right - rect$left) + 2 * pad_side,
+    (rect$bottom - rect$top) + pad_side + pad_bottom
+  )
+}
+
 record_theme <- function() {
   app <- new_app(); on.exit(app$stop(), add = TRUE)
   dir <- new_frame_dir()
-  panel_selector <- c(".card", ".driver-popover", ".driver-popover-arrow")
-  shot_args <- list(scale = 2, expand = 16)
 
   app$run_js(FORCE_LIGHT_JS)
   app$click("btn_start")
   app$wait_for_js("document.querySelector('.driver-popover') !== null")
   Sys.sleep(0.6)
   left <- file.path(dir, "default.png")
-  app$get_screenshot(left, selector = panel_selector, screenshot_args = shot_args)
+  app$get_screenshot(
+    left, selector = "html",
+    screenshot_args = list(scale = 2, cliprect = panel_cliprect(app))
+  )
 
   app$run_js("document.querySelector('.driver-popover-close-btn').click()")
   app$wait_for_js("document.querySelector('.driver-popover') === null")
@@ -431,7 +479,10 @@ record_theme <- function() {
   app$wait_for_js("document.querySelector('.driver-popover') !== null")
   Sys.sleep(0.6)
   right <- file.path(dir, "bootstrap-dark.png")
-  app$get_screenshot(right, selector = panel_selector, screenshot_args = shot_args)
+  app$get_screenshot(
+    right, selector = "html",
+    screenshot_args = list(scale = 2, cliprect = panel_cliprect(app))
+  )
 
   # hstack requires equal input heights; the two crops differ by a few px
   # (theme changes affect box-model rounding), so scale both to the
