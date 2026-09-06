@@ -36,6 +36,14 @@ new_app <- function() {
   AppDriver$new(APP_DIR, width = 1000, height = 640, load_timeout = 20000, view = FALSE)
 }
 
+# The showcase app's own input_dark_mode() default is "light", but headless
+# Chrome's color-scheme is not guaranteed light, and bslib's dark-mode
+# widget follows the OS preference on top of that default in some
+# versions -- force it explicitly so recordings are reproducible
+# regardless of the machine/Chrome version running this script.
+FORCE_LIGHT_JS <- "document.documentElement.setAttribute('data-bs-theme', 'light')"
+FORCE_DARK_JS <- "document.documentElement.setAttribute('data-bs-theme', 'dark')"
+
 new_frame_dir <- function() {
   d <- file.path(tempdir(), sprintf(
     "cicerone-frames-%s", paste(sample(c(letters, 0:9), 8, TRUE), collapse = "")
@@ -131,6 +139,7 @@ record_tour <- function() {
   app <- new_app(); on.exit(app$stop(), add = TRUE)
   dir <- new_frame_dir(); ctr <- new.env(); ctr$i <- 0L
 
+  app$run_js(FORCE_LIGHT_JS)
   app$click("btn_start")
   app$wait_for_js("document.querySelector('.driver-popover') !== null")
   capture_frames(app, dir, ctr, duration_ms = 1000) # step 1: hold
@@ -161,6 +170,7 @@ record_advance_on <- function() {
   app <- new_app(); on.exit(app$stop(), add = TRUE)
   dir <- new_frame_dir(); ctr <- new.env(); ctr$i <- 0L
 
+  app$run_js(FORCE_LIGHT_JS)
   app$click("btn_start")
   app$wait_for_js("document.querySelector('.driver-popover') !== null")
   capture_frames(app, dir, ctr, duration_ms = 1200) # step 1: hold, empty field
@@ -183,6 +193,7 @@ record_hints <- function() {
   app <- new_app(); on.exit(app$stop(), add = TRUE)
   dir <- new_frame_dir(); ctr <- new.env(); ctr$i <- 0L
 
+  app$run_js(FORCE_LIGHT_JS)
   app$click("btn_hints")
   app$wait_for_js("document.querySelectorAll('.driver-hint').length > 0")
   capture_frames(app, dir, ctr, duration_ms = 1000) # beacons: hold
@@ -204,37 +215,46 @@ record_hints <- function() {
 # under dark mode, hstacked into one still. `data-bs-theme` is forced
 # explicitly in both directions: headless Chrome's default color-scheme
 # is not guaranteed light, so leaving it on "auto" is not reproducible.
+#
+# Captured at `scale = 2` (chromote's `screenshot(scale = )`, which sets
+# `Page.captureScreenshot`'s clip.scale -- a sharper capture of the same
+# CSS-pixel region, independent of any device-scale-factor emulation) and
+# `expand = 12` (12px margin on all four sides of the popover's own
+# bounding box), so the popover isn't cropped edge-to-edge and reads
+# clearly at GitHub's rendered width.
 record_theme <- function() {
   app <- new_app(); on.exit(app$stop(), add = TRUE)
   dir <- new_frame_dir()
+  shot_args <- list(scale = 2, expand = 12)
 
-  app$run_js("document.documentElement.setAttribute('data-bs-theme', 'light')")
+  app$run_js(FORCE_LIGHT_JS)
   app$click("btn_start")
   app$wait_for_js("document.querySelector('.driver-popover') !== null")
   Sys.sleep(0.6)
   left <- file.path(dir, "default.png")
-  app$get_screenshot(left, selector = ".driver-popover")
+  app$get_screenshot(left, selector = ".driver-popover", screenshot_args = shot_args)
 
   app$run_js("document.querySelector('.driver-popover-close-btn').click()")
   app$wait_for_js("document.querySelector('.driver-popover') === null")
 
   app$set_inputs(theme_bootstrap = TRUE)
-  app$run_js("document.documentElement.setAttribute('data-bs-theme', 'dark')")
+  app$run_js(FORCE_DARK_JS)
   Sys.sleep(0.3)
   app$click("btn_start")
   app$wait_for_js("document.querySelector('.driver-popover') !== null")
   Sys.sleep(0.6)
   right <- file.path(dir, "bootstrap-dark.png")
-  app$get_screenshot(right, selector = ".driver-popover")
+  app$get_screenshot(right, selector = ".driver-popover", screenshot_args = shot_args)
 
   # hstack requires equal input heights; the two popovers differ by a few
   # px (theme changes affect box-model rounding), so scale both to the
-  # taller one's height first, preserving aspect ratio.
+  # taller one's height first, preserving aspect ratio, then resize the
+  # combined image so the pair together is ~900px wide.
   target_h <- max(image_height(left), image_height(right))
   out <- file.path(FIG_DIR, "theme.png")
   run_ffmpeg(c(
     "-y", "-i", left, "-i", right, "-filter_complex", sprintf(
-      "[0:v]scale=-1:%d:flags=lanczos[a];[1:v]scale=-1:%d:flags=lanczos[b];[a][b]hstack=inputs=2",
+      "[0:v]scale=-1:%d:flags=lanczos[a];[1:v]scale=-1:%d:flags=lanczos[b];[a][b]hstack=inputs=2[s];[s]scale=900:-1:flags=lanczos",
       target_h, target_h
     ),
     out

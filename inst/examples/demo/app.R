@@ -57,7 +57,7 @@ ui <- page_sidebar(
   # own bslib theme -- including dark mode -- via --bs-* CSS variables.
   uiOutput("popover_theme"),
   sidebar = sidebar(
-    input_dark_mode(id = "mode"),
+    input_dark_mode(id = "mode", mode = "light"),
     checkboxInput("theme_bootstrap", "Bootstrap-themed popovers"),
     hr(),
     actionButton("btn_start", "Start tour", class = "btn-primary"),
