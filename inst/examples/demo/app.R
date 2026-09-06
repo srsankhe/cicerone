@@ -25,12 +25,12 @@ tour <- Cicerone$
   )$
   step(
     el = "name", title = "Say hello",
-    description = "Type your name -- this step advances itself, no Next click needed.",
+    description = "Type your name to get started.",
     advance_on = list(el = "#name", event = "input")
   )$
   step(
     el = "tab2_panel", title = "A second tab",
-    description = "cicerone switched tabs for you before highlighting this.",
+    description = "Here's what's on the Advanced tab.",
     tab = "Advanced", tab_id = "tabs"
   )$
   step(
@@ -56,16 +56,18 @@ ui <- page_sidebar(
   # cicerone_theme(preset = "bootstrap") maps popover colors to the app's
   # own bslib theme -- including dark mode -- via --bs-* CSS variables.
   uiOutput("popover_theme"),
+  # `btn_hints` sits above the first hr() (rather than near the bottom, as
+  # originally laid out) so its target is on screen at the recorder's
+  # shorter GIF viewport without scrolling -- see media-ux-review.md item 1.
   sidebar = sidebar(
     input_dark_mode(id = "mode", mode = "light"),
     checkboxInput("theme_bootstrap", "Bootstrap-themed popovers"),
+    actionButton("btn_hints", "Show hints"),
     hr(),
     actionButton("btn_start", "Start tour", class = "btn-primary"),
     actionButton("btn_forget", "Forget tour progress"),
     hr(),
     checkboxInput("show_step3", "Reveal step 3", value = TRUE),
-    hr(),
-    actionButton("btn_hints", "Show hints"),
     hr(),
     tags$strong("Last _ended payload"),
     verbatimTextOutput("ended")
