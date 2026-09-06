@@ -24,6 +24,9 @@ import {
 } from "./util.js";
 import { armAdvance, disarmAdvance } from "./advance.js";
 import { wrapPopoverRender } from "./progress.js";
+// --- WP5 begin ---
+import { recordOnStarted, recordOnHighlighted, recordOnEnded } from "./persist.js";
+// --- WP5 end ---
 
 // Hook option names that may arrive from R as strings of JavaScript.
 const CONFIG_HOOKS = [
@@ -221,8 +224,14 @@ export const prepareConfig = (id, config) => {
           total_steps: state.total_steps,
         });
         emitEvent(id, "started", state);
+        // --- WP5 begin: persisted record write on start ---
+        recordOnStarted(id, state.index);
+        // --- WP5 end ---
       }
       emitEvent(id, "highlighted", state);
+      // --- WP5 begin: persisted record write on each highlight ---
+      recordOnHighlighted(id, state.index);
+      // --- WP5 end ---
       armAdvance(id, step);
     });
   }
@@ -295,6 +304,9 @@ export const prepareConfig = (id, config) => {
         total_steps: state.total_steps,
       });
       emitEvent(id, "ended", state);
+      // --- WP5 begin: persisted record write on end ---
+      recordOnEnded(id, reason, state.index);
+      // --- WP5 end ---
 
       pendingReason[id] = null;
       active[id] = false;

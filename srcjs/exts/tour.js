@@ -33,6 +33,16 @@ import {
   POPOVER_HOOKS,
 } from "./steps.js";
 // --- WP4 end ---
+// --- WP5 begin: persistence imports ---
+import {
+  initPersistence,
+  setPushedRecord,
+  isRunOnceCompleted,
+  resumeIndex,
+  forgetPersisted,
+  persistRecords,
+} from "./persist.js";
+// --- WP5 end ---
 
 Shiny.addCustomMessageHandler("cicerone-init", function (opts) {
   const id = opts.id || (opts.globals && opts.globals.id);
@@ -41,6 +51,18 @@ Shiny.addCustomMessageHandler("cicerone-init", function (opts) {
 
   active[id] = false;
   pendingReason[id] = null;
+
+  // --- WP5 begin: persistence setup ---
+  // cookie backend: read + cache the record now, `document.cookie` is
+  // already whatever the browser had when this page loaded, no round
+  // trip needed. Adapter backend: nothing to read yet -- `_seen` fires
+  // from the `cicerone-persist-record` handler below once R's
+  // `persist$read()` result arrives (sent right after this same
+  // `cicerone-init` message, so it is always the very next message for
+  // this id).
+  const persistedRecord = initPersistence(id, opts.persist, opts.version, opts.runOnce);
+  if (opts.persist === "cookie") emitInput(id, "seen", persistedRecord);
+  // --- WP5 end ---
 
   // --- WP4 begin: config + step preparation (steps.js) ---
   prepareConfig(id, config);
@@ -134,6 +156,29 @@ Shiny.addCustomMessageHandler("cicerone-start", function (opts) {
   if (!drivers[id]) return console.warn("cicerone: no tour", id);
   const driver = drivers[id];
   let config = driver.getConfig();
+
+  // --- WP5 begin: run_once persisted-completed suppression + resume ---
+  // Placed before anything else in this handler (including WP7's
+  // exclusive/wait_for_visible logic below): a suppressed start must
+  // never destroy another tour or touch the DOM at all.
+  if (isRunOnceCompleted(id)) {
+    const record = persistRecords[id];
+    const totalSteps = (config.steps || []).length;
+    const index = record && typeof record.idx === "number" ? record.idx : null;
+    emitInput(id, "ended", {
+      reason: "suppressed",
+      completed: false,
+      index: index,
+      total_steps: totalSteps,
+    });
+    emitEvent(id, "ended", { index: index, total_steps: totalSteps });
+    return;
+  }
+  if (opts.resume) {
+    const idx = resumeIndex(id);
+    if (typeof idx === "number") opts.step = idx;
+  }
+  // --- WP5 end ---
 
   // --- WP7 begin: exclusive ---
   // `exclusive` defaults to TRUE R-side (see build_config()); anything
@@ -282,6 +327,25 @@ Shiny.addCustomMessageHandler("cicerone-destroy-all", function (opts) {
   });
 });
 // --- WP7 end ---
+
+// --- WP5 begin: cicerone-forget / cicerone-persist-record ---
+// R -> JS push of an adapter-read record: sent right after
+// `cicerone-init` from `$init()` (once `persist$read()` resolves), and
+// available for any later push the same shape would need.
+Shiny.addCustomMessageHandler("cicerone-persist-record", function (opts) {
+  setPushedRecord(opts.id, opts.record);
+  emitInput(opts.id, "seen", opts.record || null);
+});
+
+// `$forget()`: clear the JS-side cache (and, for the cookie backend,
+// the cookie entry itself -- forgetPersisted() checks persistMode
+// itself). The adapter backend's `forget(id)` callback runs
+// server-side, in R/steps.R's `$forget()`, not here.
+Shiny.addCustomMessageHandler("cicerone-forget", function (opts) {
+  forgetPersisted(opts.id);
+  emitInput(opts.id, "seen", null);
+});
+// --- WP5 end ---
 
 Shiny.addCustomMessageHandler("cicerone-reset", function (opts) {
   if (!drivers[opts.id]) return;
