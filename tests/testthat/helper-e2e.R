@@ -161,6 +161,29 @@ clear_cicerone_cookie <- function(app) {
 # )`, which needs a session token `e2e_reload()`/`clear_cicerone_cookie()`
 # invalidate) it works both before and after a reload. `NULL` when the
 # adapter has no record for persist_srv yet (or after `$forget()`).
+# Wait until the fixture's rendered adapter record shows `status` (or, with
+# status = NULL, until it is empty/"null"). The `_ended` input reaching the
+# browser does not mean the server-side adapter write and the output
+# re-render have happened yet; on a slow CI runner reading the DOM right
+# after `wait_for_value(input = "..._ended")` races that render.
+wait_for_srv_record <- function(app, status, timeout = 10000) {
+  want <- if (is.null(status)) "null" else status
+  app$wait_for_js(sprintf(
+    "(function(){
+       var el = document.querySelector('#out_persist_srv_record');
+       if (!el) return false;
+       var t = el.textContent.trim();
+       if (!t || t === 'null') return %s;
+       try {
+         var r = JSON.parse(t);
+         var s = Array.isArray(r.status) ? r.status[0] : r.status;
+         return s === '%s';
+       } catch (e) { return false; }
+     })()",
+    if (is.null(status)) "true" else "false", want
+  ), timeout = timeout)
+}
+
 persist_srv_record <- function(app) {
   txt <- trimws(app$get_text("#out_persist_srv_record"))
   if (!nzchar(txt) || identical(txt, "null")) return(NULL)

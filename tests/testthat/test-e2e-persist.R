@@ -186,6 +186,7 @@ test_that("adapter backend: completing writes to the session$userData store, _se
   app$wait_for_idle()
   app$click(selector = ".driver-popover-next-btn") # Done (2nd/last step)
   app$wait_for_value(input = "persist_srv_cicerone_ended")
+  wait_for_srv_record(app, "completed")
 
   record <- persist_srv_record(app)
   expect_equal(record$status, "completed")
@@ -200,6 +201,7 @@ test_that("adapter backend: completing writes to the session$userData store, _se
 
   app$click(input = "btn_forget_persist_srv")
   app$wait_for_idle()
+  wait_for_srv_record(app, NULL)
 
   expect_null(persist_srv_record(app))
   expect_null(input_value(app, "persist_srv_cicerone_seen"))
@@ -219,6 +221,7 @@ test_that("both backends produce the same record shape for the same event sequen
   app$click(input = "btn_start_persist_srv")
   wait_for_input_value_js(app, "persist_srv_cicerone_started")
   app$wait_for_idle()
+  wait_for_srv_record(app, "in_progress")
   adapter_record <- persist_srv_record(app)
 
   expect_equal(cookie_record$v, adapter_record$v)
