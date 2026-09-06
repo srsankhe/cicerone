@@ -119,6 +119,30 @@ Hints can be controlled from the server with `open()`, `close()`,
 `{id}_cicerone_hint_opened`, `{id}_cicerone_hint_dismissed`, and
 `{id}_cicerone_hint_button`.
 
+## Shiny inputs
+
+The bridge sets these Shiny inputs. `{id}` is the `id` of the
+`Cicerone`/`Hints` object; all of them fire with `priority: "event"`.
+
+| Input | Payload | Fired when |
+|---|---|---|
+| `{id}_cicerone_state` | `{highlighted, previous, before_previous, has_next, has_previous, index, is_first, is_last, total_steps}` | every step highlight |
+| `{id}_cicerone_next` | same shape as `_state` | the Next button is clicked, or `$move_forward()` is called |
+| `{id}_cicerone_previous` | same shape as `_state` | the Previous button is clicked, or `$move_backward()` is called |
+| `cicerone_reset` (global, no `{id}` prefix) | `TRUE` | any tour is destroyed |
+| `{id}_cicerone_reset` | `TRUE` | the tour is destroyed |
+| `{id}_cicerone_hint_opened` | `{id: <hint id or NULL>, element: <selector>}` | a hint opens |
+| `{id}_cicerone_hint_dismissed` | `{id: <hint id or NULL>, element: <selector>}` | a hint is dismissed |
+| `{id}_cicerone_hint_button` | `{id: <hint id or NULL>, element: <selector>}` | a hint popover button is clicked |
+| `{id}_cicerone_started` **(new in 2.1.0)** | `{index, total_steps}` | `drive()` first highlights a step |
+| `{id}_cicerone_ended` **(new in 2.1.0)** | `{reason, completed, index, total_steps}`; `reason` is one of `"done"`, `"close"`, `"programmatic"`, `"dismissed"`; `completed` is `TRUE` only when `reason == "done"` | the tour is destroyed, for any reason |
+| `{id}_cicerone_event` **(new in 2.1.0)** | `{type, index, element, total_steps, time}` | every lifecycle event, in addition to the specific inputs above |
+
+`previous` in `{id}_cicerone_state` is **deprecated**: it duplicates
+`highlighted` rather than holding the previously highlighted element
+(`before_previous` does that). It is kept only for cicerone < 2.0.0
+compatibility.
+
 ## New in 2.0.0 (driver.js 1.x)
 
 - Progress text (`show_progress`, `progress_text`)
