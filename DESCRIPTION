@@ -31,7 +31,8 @@ Imports:
     R6,
     shiny,
     htmltools,
-    assertthat
+    assertthat,
+    jsonlite
 Roxygen: list(markdown = TRUE)
 Suggests:
     covr,

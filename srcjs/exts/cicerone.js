@@ -10,6 +10,9 @@ import { drivers, hinters } from "./bridge.js";
 // --- WP6 begin ---
 import { advanceListeners } from "./advance.js";
 // --- WP6 end ---
+// --- WP4 begin ---
+import { allSteps } from "./steps.js";
+// --- WP4 end ---
 
 // Host applications sometimes have to drive a tour from their own JavaScript,
 // when the signals it must react to are only observable in the DOM and never
@@ -23,6 +26,9 @@ window.cicerone = {
   // --- WP6 begin ---
   advanceListeners: advanceListeners,
   // --- WP6 end ---
+  // --- WP4 begin ---
+  steps: allSteps,
+  // --- WP4 end ---
 };
 
 import "./tour.js";

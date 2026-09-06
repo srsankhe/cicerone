@@ -2,6 +2,12 @@ generate_id <- function() {
   paste0(sample(letters, 26), collapse = "")
 }
 
+# WP5: last-shown timestamp for a persisted tour record, ISO-8601 UTC
+# ("Z" suffix), e.g. "2026-09-06T12:34:56Z".
+iso_now <- function() {
+  strftime(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
+}
+
 # valid `progress_style` values, shared by `Cicerone$new()`/`initialise()`
 # (config-level, always resolved to one of these via `match.arg()`) and
 # `step()`/`highlight()` (step-level, where `NULL` means "inherit the
@@ -109,31 +115,44 @@ deprecated_arg <- function(value, arg, replacement = NULL) {
 
 # build the driver.js 1.x config object shared by
 # Cicerone$new() and initialise()
+#
+# --- WP4 begin: NULL defaults, shared with $set_config() ---
+# Every formal below defaults to NULL, not driver.js's real default
+# (TRUE/"close"/10/etc.). `Cicerone$new()`/`initialise()` always resolve
+# and pass an explicit value for every one of these before calling
+# build_config() (see their bodies), so this never changes what those two
+# call sites send. `Cicerone$set_config()` is the reason for the change:
+# it calls build_config() with only the arguments the caller supplied to
+# `$set_config()`, relying on every *unsupplied* one defaulting to NULL so
+# `drop_nulls()` below omits it from the outgoing message, instead of
+# resending driver.js's default and clobbering whatever that key is
+# currently live-set to.
+# --- WP4 end ---
 build_config <- function(
-  animate = TRUE,
+  animate = NULL,
   overlay_color = NULL,
-  overlay_opacity = .75,
-  smooth_scroll = FALSE,
-  allow_close = TRUE,
-  allow_scroll = TRUE,
-  overlay_click_behavior = "close",
-  stage_padding = 10,
+  overlay_opacity = NULL,
+  smooth_scroll = NULL,
+  allow_close = NULL,
+  allow_scroll = NULL,
+  overlay_click_behavior = NULL,
+  stage_padding = NULL,
   stage_radius = NULL,
-  allow_keyboard_control = TRUE,
-  disable_active_interaction = FALSE,
+  allow_keyboard_control = NULL,
+  disable_active_interaction = NULL,
   advance_on_click = NULL,
   skip_missing_element = NULL,
   wait_for_element = NULL,
   popover_class = NULL,
   popover_offset = NULL,
-  show_buttons = TRUE,
+  show_buttons = NULL,
   disable_buttons = NULL,
-  show_progress = FALSE,
+  show_progress = NULL,
   progress_text = NULL,
-  progress_style = "text",
-  next_btn_text = "Next",
-  prev_btn_text = "Previous",
-  done_btn_text = "Done",
+  progress_style = NULL,
+  next_btn_text = NULL,
+  prev_btn_text = NULL,
+  done_btn_text = NULL,
   duration = NULL,
   on_popover_render = NULL,
   on_highlight_started = NULL,
@@ -146,7 +165,7 @@ build_config <- function(
   on_close_click = NULL,
   on_done_click = NULL,
   # --- WP7 begin: exclusive / wait_for_visible ---
-  exclusive = TRUE,
+  exclusive = NULL,
   wait_for_visible = NULL
   # --- WP7 end ---
 ) {
@@ -297,3 +316,18 @@ validate_advance_when <- function(x) {
   }
   x
 }
+
+# --- WP4 begin: show_if ---
+# validate step(show_if=): a single string of JavaScript, or NULL. Passed
+# through unchanged -- JS evaluates it as `(step, opts) => boolean` against
+# `allSteps[id]` on every `cicerone-start` (see srcjs/exts/tour.js).
+validate_show_if <- function(x) {
+  if (!is.null(x)) {
+    assertthat::assert_that(
+      assertthat::is.string(x),
+      msg = "`show_if` must be a single character string of JavaScript"
+    )
+  }
+  x
+}
+# --- WP4 end ---

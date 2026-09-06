@@ -160,7 +160,11 @@ test_that("initialise's formals match Cicerone$new() apart from a documented all
   # `exclusive`/`wait_for_visible` (WP7) gate `cicerone-start`, a message
   # `initialise()`'s single-highlight ("cicerone-highlight-man") path
   # never sends; scoped to Cicerone$new()/$step() only, see NEWS.
-  allowlist <- c("mathjax", "exclusive", "wait_for_visible")
+  # `persist`/`version` (WP5) need a stable object to read/write a
+  # record against and to run `$forget()`/`$start(resume = )` on later;
+  # `initialise()` keeps no such object between calls, so persistence
+  # is Cicerone-only, see NEWS.
+  allowlist <- c("mathjax", "exclusive", "wait_for_visible", "persist", "version")
 
   extra <- setdiff(
     names(formals(Cicerone$public_methods$initialize)),
