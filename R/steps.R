@@ -546,7 +546,6 @@ Cicerone <- R6::R6Class(
         # --- WP5 end ---
       )
 
-      private$run_once <- run_once
       private$initialized <- TRUE
       session$sendCustomMessage("cicerone-init", opts)
 

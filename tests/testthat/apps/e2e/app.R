@@ -188,6 +188,15 @@ guide_steps <- Cicerone$
   )$
   step(el = "el3", title = "Steps 3", description = "Third element.")
 # --- WP4 end ---
+# Note: the persistence fixtures (persist_cookie, persist_cookie_v2,
+# persist_srv) are NOT defined here at script scope, unlike every tour
+# above. They are built fresh inside server() below -- see the WP5
+# comment there for why: a `Cicerone` object created at script scope is
+# shared by every session this R process ever serves (including a
+# session that exists only because of a `location.reload()`), so its
+# private `run_once`/`runs` counter would leak across sessions/reloads
+# too, defeating the very reload-across-persistence scenarios this
+# fixture exists to test.
 
 ui <- fluidPage(
   use_cicerone(),
@@ -252,8 +261,27 @@ ui <- fluidPage(
   actionButton("btn_start_steps", "Start steps tour"),
   actionButton("btn_reset_steps", "Reset steps tour"),
   actionButton("btn_rebuild_steps", "Rebuild to one step"),
-  actionButton("btn_set_overlay_opacity", "Set overlay opacity 0.1")
+  actionButton("btn_set_overlay_opacity", "Set overlay opacity 0.1"),
   # --- WP4 end ---
+  # --- WP5 begin: persistence fixtures ---
+  actionButton("btn_start_persist_cookie", "Start persist_cookie tour"),
+  actionButton("btn_resume_persist_cookie", "Resume persist_cookie tour"),
+  actionButton("btn_forget_persist_cookie", "Forget persist_cookie tour"),
+  actionButton("btn_start_persist_v2", "Start persist_cookie_v2 tour"),
+  actionButton("btn_start_persist_srv", "Start persist_srv tour"),
+  actionButton("btn_reinit_persist_srv", "Re-init persist_srv tour"),
+  actionButton("btn_forget_persist_srv", "Forget persist_srv tour"),
+  # tour_state() evaluated once, synchronously, when the session's
+  # server function runs -- proves the "read at server start" claim
+  # (session$request$HTTP_COOKIE reflects whatever cookie the browser
+  # sent on THIS page load/reconnect, before any Shiny input arrives)
+  verbatimTextOutput("out_persist_cookie_state_at_start"),
+  # JSON text (not renderPrint's list format) so a test can
+  # jsonlite::fromJSON() it directly; read via app$get_text(), which is
+  # JS/CDP-based and (unlike app$get_value()/exportTestValues()) still
+  # works after an app$run_js("location.reload()") -- see helper-e2e.R.
+  verbatimTextOutput("out_persist_srv_record")
+  # --- WP5 end ---
 )
 
 server <- function(input, output, session) {
@@ -279,6 +307,60 @@ server <- function(input, output, session) {
   # --- WP4 begin: mutable tours / show_if init ---
   guide_steps$init()
   # --- WP4 end ---
+  # --- WP5 begin: persistence init ---
+  # Built here, fresh per session, not at script scope like every other
+  # tour above (see the comment left in their place): a script-scope
+  # object's private run_once/runs counter is shared by every session
+  # this R process serves, including a session that only exists because
+  # of test-e2e-persist.R's own `location.reload()`.
+  guide_persist_cookie <- Cicerone$
+    new(id = "persist_cookie", persist = "cookie")$
+    step(el = "el1", title = "Persist 1", description = "Step 1 of 3.")$
+    step(el = "el2", title = "Persist 2", description = "Step 2 of 3.")$
+    step(el = "el3", title = "Persist 3", description = "Step 3 of 3.")
+  guide_persist_cookie$init(run_once = TRUE)
+
+  # Same id *family* as persist_cookie (shares the "persist_cookie"
+  # prefix for readability) but its own cookie key
+  # ("persist_cookie_v2") and its own `version = 2`. Used two ways in
+  # test-e2e-persist.R: (1) with a v1 record seeded directly via
+  # `document.cookie` before this tour's own `$init()` ever runs, to
+  # prove a version mismatch reads as no record while leaving the raw
+  # cookie entry alone; (2) run fresh (no seeding), to prove two
+  # persisted tours coexist as separate keys in the one cookie.
+  guide_persist_v2 <- Cicerone$
+    new(id = "persist_cookie_v2", persist = "cookie", version = 2)$
+    step(el = "el1", title = "Persist v2", description = "Version-2 tour.")
+  guide_persist_v2$init()
+
+  # session$userData adapter: needs `session`, so the tour itself is
+  # built here rather than at the top of the script (see ?Cicerone's
+  # Persistence section for this same pattern). `session$userData`
+  # mutations are not themselves reactive, so `persist_srv_record_ver`
+  # is bumped from inside write()/forget() (synchronously, right after
+  # the mutation, in the SAME call -- no observer-ordering ambiguity)
+  # purely to give `out_persist_srv_record` below something reactive to
+  # invalidate on.
+  persist_srv_record_ver <- reactiveVal(0)
+  persist_srv_adapter <- list(
+    read = function(id) session$userData$cicerone_tours[[id]],
+    write = function(id, record) {
+      if (is.null(session$userData$cicerone_tours))
+        session$userData$cicerone_tours <- list()
+      session$userData$cicerone_tours[[id]] <- record
+      persist_srv_record_ver(isolate(persist_srv_record_ver()) + 1)
+    },
+    forget = function(id) {
+      session$userData$cicerone_tours[[id]] <- NULL
+      persist_srv_record_ver(isolate(persist_srv_record_ver()) + 1)
+    }
+  )
+  guide_persist_srv <- Cicerone$
+    new(id = "persist_srv", persist = persist_srv_adapter)$
+    step(el = "el1", title = "Persist srv 1", description = "Step 1 of 2.")$
+    step(el = "el2", title = "Persist srv 2", description = "Step 2 of 2.")
+  guide_persist_srv$init()
+  # --- WP5 end ---
 
   observeEvent(input$btn_start, guide$start())
   observeEvent(input$btn_reset, guide$reset())
@@ -340,6 +422,16 @@ server <- function(input, output, session) {
   })
   # --- WP4 end ---
 
+  # --- WP5 begin: persistence observers ---
+  observeEvent(input$btn_start_persist_cookie, guide_persist_cookie$start())
+  observeEvent(input$btn_resume_persist_cookie, guide_persist_cookie$start(resume = TRUE))
+  observeEvent(input$btn_forget_persist_cookie, guide_persist_cookie$forget())
+  observeEvent(input$btn_start_persist_v2, guide_persist_v2$start())
+  observeEvent(input$btn_start_persist_srv, guide_persist_srv$start())
+  observeEvent(input$btn_reinit_persist_srv, guide_persist_srv$init())
+  observeEvent(input$btn_forget_persist_srv, guide_persist_srv$forget())
+  # --- WP5 end ---
+
   output$out_state <- renderPrint(input[["e2e_cicerone_state"]])
   output$out_next <- renderPrint(input[["e2e_cicerone_next"]])
   output$out_previous <- renderPrint(input[["e2e_cicerone_previous"]])
@@ -348,6 +440,14 @@ server <- function(input, output, session) {
   output$out_hint_opened <- renderPrint(input[["e2e_hints_cicerone_hint_opened"]])
   output$out_hint_dismissed <- renderPrint(input[["e2e_hints_cicerone_hint_dismissed"]])
   output$out_hint_button <- renderPrint(input[["e2e_hints_cicerone_hint_button"]])
+  # --- WP5 begin: server-start synchronous cookie read ---
+  output$out_persist_cookie_state_at_start <- renderPrint(tour_state(session, "persist_cookie"))
+  output$out_persist_srv_record <- renderText({
+    persist_srv_record_ver()
+    rec <- session$userData$cicerone_tours[["persist_srv"]]
+    if (is.null(rec)) "null" else as.character(jsonlite::toJSON(rec, auto_unbox = TRUE))
+  })
+  # --- WP5 end ---
 
   # WP1: accumulate the `e2e` tour's `_event` stream so the lifecycle e2e
   # test can assert the exact type sequence of a full run. Exported (not a
