@@ -1,6 +1,13 @@
 // The Shiny <-> driver.js bridge: instance registries and the wrappers
 // that keep Shiny inputs in sync with tour state.
 import { stripHash } from "./util.js";
+// --- WP7 begin: wait_for_visible imports ---
+import {
+  waitForVisible,
+  effectiveWaitForVisible,
+  effectiveSkipMissingElement,
+} from "./anchor.js";
+// --- WP7 end ---
 
 // driver.js 1.x instances, keyed by cicerone id
 export let drivers = {};
@@ -19,6 +26,11 @@ export let active = {};
 // back to "dismissed" when nothing set it (Escape and a plain overlay
 // click with a custom `overlayClickBehavior` function bypass every other
 // wrapper and go straight to driver.js's internal destroy).
+// --- WP7 begin: superseded/programmatic reasons ---
+// Also set to "superseded" (tour.js, cicerone-start, when `exclusive`
+// destroys every other active tour) and "programmatic" (tour.js,
+// cicerone-destroy-all, in addition to the existing cicerone-reset use).
+// --- WP7 end ---
 export let pendingReason = {};
 
 // Snapshot of the driver state sent to Shiny.
@@ -90,6 +102,56 @@ export const emitEvent = (id, type, state) => {
   });
 };
 
+// --- WP7 begin: wait_for_visible move gate ---
+// Before actually moving (moveNext()/movePrevious()), if the target step
+// has an effective `waitForVisible > 0` and an `element` selector, poll
+// until it exists with a non-zero bounding rect (or `waitForVisible` ms
+// elapse), then call `move`. On timeout, emit `_event type:
+// "anchor_timeout"` and either skip past the target step (when
+// `skipMissingElement` applies -- `moveTo(targetIndex + direction)`) or
+// call `move` anyway, exactly as if the wait had succeeded.
+//
+// `targetStep`/`targetIndex` are a best-effort peek at where `move` is
+// about to land:
+// - forward: `driver.getNextStep()`, the same skip-aware lookup driver.js
+//   itself uses for moveNext()/the Next button.
+// - backward: `steps[activeIndex - 1]`, NOT skip-aware (driver.js exposes
+//   no public equivalent of its internal backward `I()` search). A
+//   `skipMissingElement` step immediately before the active one is the
+//   known gap this leaves; not exercised by any WP7 test.
+const gateMove = (id, targetStep, targetIndex, direction, move) => {
+  const driver = drivers[id];
+  if (!driver || !targetStep || !targetStep.element) return move();
+
+  const config = driver.getConfig();
+  const waitMs = effectiveWaitForVisible(targetStep, config);
+  if (!(waitMs > 0)) return move();
+
+  waitForVisible(targetStep.element, { timeout: waitMs, requireVisible: true }).then(
+    (result) => {
+      if (!drivers[id]) return;
+      if (result.visible) return move();
+
+      const state = getStateData(drivers[id]);
+      emitEvent(id, "anchor_timeout", {
+        index: targetIndex,
+        highlighted: stripHash(targetStep.element),
+        total_steps: state ? state.total_steps : null,
+      });
+
+      if (
+        effectiveSkipMissingElement(targetStep, config) &&
+        typeof targetIndex === "number"
+      ) {
+        drivers[id].moveTo(targetIndex + direction);
+      } else {
+        move();
+      }
+    },
+  );
+};
+// --- WP7 end ---
+
 // Wrap a user supplied onNextClick so that:
 // 1. the `{id}_cicerone_next` Shiny input always fires
 // 2. the tour still advances (driver.js 1.x hands control over
@@ -102,7 +164,14 @@ export const wrapNext = (id, fn) => {
     emitEvent(id, "next", state);
     let out;
     if (fn) out = fn(element, step, opts);
-    if (out !== false && drivers[id]) drivers[id].moveNext();
+    if (out === false || !drivers[id]) return;
+    // --- WP7 begin: wait_for_visible before moving ---
+    const driver = drivers[id];
+    const targetStep = driver.getNextStep();
+    const steps = driver.getConfig().steps || [];
+    const targetIndex = targetStep ? steps.indexOf(targetStep) : undefined;
+    gateMove(id, targetStep, targetIndex, 1, () => drivers[id] && drivers[id].moveNext());
+    // --- WP7 end ---
   };
 };
 
@@ -113,7 +182,15 @@ export const wrapPrevious = (id, fn) => {
     emitEvent(id, "previous", state);
     let out;
     if (fn) out = fn(element, step, opts);
-    if (out !== false && drivers[id]) drivers[id].movePrevious();
+    if (out === false || !drivers[id]) return;
+    // --- WP7 begin: wait_for_visible before moving ---
+    const driver = drivers[id];
+    const steps = driver.getConfig().steps || [];
+    const activeIndex = driver.getActiveIndex();
+    const targetIndex = typeof activeIndex === "number" ? activeIndex - 1 : undefined;
+    const targetStep = typeof targetIndex === "number" ? steps[targetIndex] : undefined;
+    gateMove(id, targetStep, targetIndex, -1, () => drivers[id] && drivers[id].movePrevious());
+    // --- WP7 end ---
   };
 };
 

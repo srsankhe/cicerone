@@ -5,44 +5,45 @@ import {
   active,
   pendingReason,
   getStateData,
-  stateFromHookOpts,
   wrapNext,
   wrapPrevious,
-  wrapDone,
-  wrapClose,
-  emitInput,
   emitEvent,
+  emitInput,
 } from "./bridge.js";
 import {
   evalFunction,
   evalHooks,
   cleanupStaleHighlights,
-  makeTabActivator,
 } from "./util.js";
 // --- WP6 begin ---
 import { armAdvance, disarmAdvance } from "./advance.js";
 // --- WP6 end ---
-// --- WP9 begin ---
-import { wrapPopoverRender } from "./progress.js";
-// --- WP9 end ---
-
-// Hook option names that may arrive from R as strings of JavaScript
-const CONFIG_HOOKS = [
-  "onPopoverRender",
-  "onHighlightStarted",
-  "onHighlighted",
-  "onDeselected",
-  "onDestroyStarted",
-  "onDestroyed",
-  "onNextClick",
-  "onPrevClick",
-  "onCloseClick",
-  "onDoneClick",
-];
-
-const STEP_HOOKS = ["onHighlightStarted", "onHighlighted", "onDeselected"];
-
-const POPOVER_HOOKS = ["onPopoverRender", "onCloseClick", "onDoneClick"];
+// --- WP7 begin: exclusive start / anchor readiness imports ---
+import { stripHash } from "./util.js";
+import {
+  waitForVisible,
+  effectiveWaitForVisible,
+} from "./anchor.js";
+// --- WP7 end ---
+// --- WP4 begin: extracted step/config preparation ---
+import {
+  prepareSteps,
+  prepareConfig,
+  allSteps,
+  STEP_HOOKS,
+  POPOVER_HOOKS,
+} from "./steps.js";
+// --- WP4 end ---
+// --- WP5 begin: persistence imports ---
+import {
+  initPersistence,
+  setPushedRecord,
+  isRunOnceCompleted,
+  resumeIndex,
+  forgetPersisted,
+  persistRecords,
+} from "./persist.js";
+// --- WP5 end ---
 
 Shiny.addCustomMessageHandler("cicerone-init", function (opts) {
   const id = opts.id || (opts.globals && opts.globals.id);
@@ -52,212 +53,300 @@ Shiny.addCustomMessageHandler("cicerone-init", function (opts) {
   active[id] = false;
   pendingReason[id] = null;
 
-  // string hooks -> functions
-  evalHooks(config, CONFIG_HOOKS);
-  if (
-    typeof config.overlayClickBehavior === "string" &&
-    !["close", "nextStep"].includes(config.overlayClickBehavior)
-  ) {
-    config.overlayClickBehavior = evalFunction(config.overlayClickBehavior);
-  }
-  // driver.js's own "close" string only destroys internally, bypassing
-  // every hook; replace it with a function so overlay clicks get tagged
-  // "dismissed" like Escape does. Leave "nextStep" and a user-supplied
-  // function alone -- those already route through onDoneClick/onNextClick
-  // (nextStep) or are the consumer's own business (function).
-  if (
-    config.overlayClickBehavior === "close" ||
-    typeof config.overlayClickBehavior === "undefined"
-  ) {
-    config.overlayClickBehavior = (element, step, hookOpts) => {
-      if (!hookOpts.config.allowClose) return;
-      pendingReason[id] = "dismissed";
-      if (drivers[id] && drivers[id].isActive()) drivers[id].destroy();
-    };
-  }
+  // --- WP5 begin: persistence setup ---
+  // cookie backend: read + cache the record now, `document.cookie` is
+  // already whatever the browser had when this page loaded, no round
+  // trip needed. Adapter backend: nothing to read yet -- `_seen` fires
+  // from the `cicerone-persist-record` handler below once R's
+  // `persist$read()` result arrives (sent right after this same
+  // `cicerone-init` message, so it is always the very next message for
+  // this id).
+  const persistedRecord = initPersistence(id, opts.persist, opts.version, opts.runOnce);
+  if (opts.persist === "cookie") emitInput(id, "seen", persistedRecord);
+  // --- WP5 end ---
 
-  // strip leaked driver-active-element tags on every transfer;
-  // note: a step-level onHighlightStarted overrides this hook, so the
-  // step loop below re-injects the cleanup there
-  const userHighlightStarted = config.onHighlightStarted;
-  config.onHighlightStarted = (element, step, hookOpts) => {
-    cleanupStaleHighlights();
-    if (userHighlightStarted) userHighlightStarted(element, step, hookOpts);
-  };
+  // --- WP4 begin: config + step preparation (steps.js) ---
+  prepareConfig(id, config);
 
-  // always notify Shiny of state when a step is highlighted; the first
-  // highlight of a drive() also fires `_started`/event "started" (but not
-  // a subsequent move_to(), which re-highlights without a fresh drive())
-  const userHighlighted = config.onHighlighted;
-  config.onHighlighted = (element, step, hookOpts) => {
-    if (userHighlighted) userHighlighted(element, step, hookOpts);
-    const state = getStateData(drivers[id]);
-    emitInput(id, "state", state, false);
-    if (!active[id]) {
-      active[id] = true;
-      emitInput(id, "started", {
-        index: state.index,
-        total_steps: state.total_steps,
-      });
-      emitEvent(id, "started", state);
-    }
-    emitEvent(id, "highlighted", state);
-    // --- WP6 begin ---
-    armAdvance(id, step);
-    // --- WP6 end ---
-  };
-
-  // --- WP6 begin ---
-  // config-level onDeselected: fires whenever the tour moves away from a
-  // step, including on destroy() (driver.js's `h()` calls onDeselected
-  // just before onDestroyed when there was an active step -- see
-  // driver.js.mjs). A step-level onDeselected (step(on_deselected = ))
-  // overrides this the same way a step-level onHighlighted overrides
-  // onHighlighted above, so the step loop below re-wraps it there too.
-  const userDeselected = config.onDeselected;
-  config.onDeselected = (element, step, hookOpts) => {
-    disarmAdvance(id);
-    if (userDeselected) userDeselected(element, step, hookOpts);
-  };
-  // --- WP6 end ---
-
-  // always notify Shiny when next/previous is clicked
-  const origConfigNext = config.onNextClick;
-  const origConfigDone = config.onDoneClick;
-  const origConfigClose = config.onCloseClick;
-
-  config.onNextClick = wrapNext(id, origConfigNext);
-  config.onPrevClick = wrapPrevious(id, config.onPrevClick);
-  config.onCloseClick = wrapClose(id, origConfigClose);
-
-  // driver.js only calls onDoneClick when it is defined, and only on the
-  // last non-skipped step; defining it unconditionally means driver.js
-  // stops falling back to onNextClick there (see `L()` in
-  // driver.js.mjs), so this wrapper resolves that same fallback chain
-  // itself, using the ORIGINAL (pre-wrap) hooks -- calling the already
-  // wrapped onNextClick here would double-emit `_next` and call
-  // moveNext() right before we destroy().
-  config.onDoneClick = wrapDone(id, (step) => {
-    const popover = (step && step.popover) || {};
-    return (
-      popover._cicOrigDone ||
-      origConfigDone ||
-      popover._cicOrigNext ||
-      origConfigNext
-    );
-  });
-
-  // always notify Shiny when the tour is closed/destroyed
-  const userDestroyed = config.onDestroyed;
-  config.onDestroyed = (element, step, hookOpts) => {
-    // --- WP6 begin ---
-    // usually already a no-op here (onDeselected above already disarmed
-    // on the way out); kept as a safety net for the one path that skips
-    // onDeselected entirely -- destroy() called while nothing is active.
-    disarmAdvance(id);
-    // --- WP6 end ---
-    if (userDestroyed) userDestroyed(element, step, hookOpts);
-
-    const reason = pendingReason[id] || "dismissed";
-    const state = stateFromHookOpts(hookOpts);
-
-    emitInput(id, "ended", {
-      reason: reason,
-      completed: reason === "done",
-      index: state.index,
-      total_steps: state.total_steps,
-    });
-    emitEvent(id, "ended", state);
-
-    pendingReason[id] = null;
-    active[id] = false;
-
-    Shiny.setInputValue("cicerone_reset", true, { priority: "event" });
-    emitInput(id, "reset", true);
-  };
-
-  const steps = opts.steps || [];
-  steps.forEach((step) => {
-    // step-level onHighlightStarted overrides the config-level hook in
-    // driver.js, so any step that defines one (directly or via tab
-    // activation) must run the stale-highlight cleanup itself
-    const activateTab =
-      step.tab_id && step.tab ? makeTabActivator(step.tab_id, step.tab) : null;
-    const userStart = evalFunction(step.onHighlightStarted);
-    if (activateTab || userStart) {
-      step.onHighlightStarted = (element, s, hookOpts) => {
-        cleanupStaleHighlights();
-        if (activateTab) activateTab();
-        if (userStart) userStart(element, s, hookOpts);
-      };
-    }
-    delete step.tab_id;
-    delete step.tab;
-
-    evalHooks(step, STEP_HOOKS);
-
-    // --- WP6 begin ---
-    // a step-level onHighlighted/onDeselected (step(on_highlighted = )/
-    // step(on_deselected = )) overrides the config-level hooks wrapped
-    // above (`f=n?.onHighlighted||e.getConfig("onHighlighted")` /
-    // `m=a?.onDeselected||e.getConfig("onDeselected")` in driver.js.mjs),
-    // so a step that defines either must re-run arm/disarm itself here,
-    // the same way `userStart` above re-runs cleanupStaleHighlights for a
-    // step-level override of onHighlightStarted.
-    if (step.onHighlighted) {
-      const userStepHighlighted = step.onHighlighted;
-      step.onHighlighted = (element, s, hookOpts) => {
-        userStepHighlighted(element, s, hookOpts);
-        armAdvance(id, s);
-      };
-    }
-    if (step.onDeselected) {
-      const userStepDeselected = step.onDeselected;
-      step.onDeselected = (element, s, hookOpts) => {
-        disarmAdvance(id);
-        userStepDeselected(element, s, hookOpts);
-      };
-    }
-    // --- WP6 end ---
-
-    if (step.popover) {
-      evalHooks(step.popover, POPOVER_HOOKS);
-
-      // stash the ORIGINAL (pre-wrap) done/next hooks of this step's
-      // popover for the config-level onDoneClick fallback above, before
-      // wrapping onNextClick below turns the latter into a wrapNext()
-      // closure
-      step.popover._cicOrigDone = step.popover.onDoneClick;
-      step.popover._cicOrigNext = evalFunction(step.popover.onNextClick);
-
-      if (step.popover.onNextClick) {
-        step.popover.onNextClick = wrapNext(id, step.popover._cicOrigNext);
-      }
-      if (step.popover.onPrevClick) {
-        step.popover.onPrevClick = wrapPrevious(
-          id,
-          evalFunction(step.popover.onPrevClick),
-        );
-      }
-      if (step.popover.onCloseClick) {
-        step.popover.onCloseClick = wrapClose(id, step.popover.onCloseClick);
-      }
-    }
-  });
-
-  config.steps = steps;
-
-  // --- WP9 begin ---
-  wrapPopoverRender(id, config);
-  // --- WP9 end ---
+  const prepared = prepareSteps(id, opts.steps || [], config);
+  config.steps = prepared;
+  allSteps[id] = prepared;
+  // --- WP4 end ---
 
   drivers[id] = Driver(config);
 });
 
-Shiny.addCustomMessageHandler("cicerone-start", function (opts) {
-  if (!drivers[opts.id]) return console.warn("cicerone: no tour", opts.id);
-  drivers[opts.id].drive(opts.step);
+// --- WP4 begin: mutable tours ---
+// `$set_steps()`: rebuild the driver's step list from whatever
+// `private$steps` currently holds R-side (typically after
+// `$clear_steps()$step(...)...`). Always raw (unwrapped) steps -- R never
+// round-trips the wrapped JS closures -- so no idempotency concern here,
+// unlike prepareConfig.
+Shiny.addCustomMessageHandler("cicerone-set-steps", function (opts) {
+  const id = opts.id;
+  if (!drivers[id]) return console.warn("cicerone: no tour", id);
+
+  const prepared = prepareSteps(id, opts.steps || [], drivers[id].getConfig());
+  allSteps[id] = prepared;
+  drivers[id].setSteps(prepared);
 });
+
+// `$set_config()`: merge the supplied globals over the driver's current
+// config and re-apply. driver.js's own `setConfig()` replaces the ENTIRE
+// config with `{...driver.js's hardcoded defaults, ...newConfig}` -- it
+// does NOT merge with the previously live config (see `configure()`/
+// `ne()` in driver.js.mjs: `e={animate:true,...,...t}` on every call).
+// Passing only the newly supplied keys would therefore wipe every other
+// key already set (our wrapped hooks, `exclusive`, `waitForVisible`, and
+// `steps`, none of which are among driver.js's own defaults) back to
+// driver.js's stock values. Spreading the full current `getConfig()`
+// first avoids that.
+//
+// `steps` is deliberately restored from the authoritative `allSteps[id]`
+// list (not whatever subset `config.steps` happened to hold, e.g. a
+// `show_if`-filtered list from the last `cicerone-start`) IN THE SAME
+// object passed to `setConfig()`, rather than via a separate
+// `drivers[id].setSteps()` call afterward. `setSteps()` is not just "set
+// the steps key": it is `d(); t.resetState(); t.setConfig(...)` (see
+// driver.js.mjs) -- it wipes ALL live state first, including
+// `activeIndex` and the current overlay SVG reference. Calling it
+// mid-tour would silently orphan the visible overlay/popover (a new one
+// gets created on the next highlight, reading the updated config, but
+// the old one is never removed) and would break `moveNext()`/
+// `movePrevious()` until the next highlight resets `activeIndex` (both
+// read `getState("activeIndex")`, `undefined` right after
+// `resetState()`, and no-op). Plain `setConfig()` (`configure()`) touches
+// only the config store, never live state, so folding `steps` into one
+// `setConfig()` call keeps the tour exactly where it was.
+Shiny.addCustomMessageHandler("cicerone-set-config", function (opts) {
+  const id = opts.id;
+  if (!drivers[id]) return console.warn("cicerone: no tour", id);
+
+  const merged = Object.assign({}, drivers[id].getConfig());
+  Object.assign(merged, opts.globals || {});
+  merged.steps = allSteps[id] || merged.steps || [];
+
+  prepareConfig(id, merged);
+  drivers[id].setConfig(merged);
+
+  // driver.js only ever sets the overlay `<path>`'s `style.fill`/
+  // `style.opacity` once, at creation time (`M()` in driver.js.mjs);
+  // every later highlight/refresh only rewrites its `d` attribute (`A()`),
+  // never fill/opacity. A mid-tour `overlay_color`/`overlay_opacity`
+  // change would otherwise silently not take visible effect until the
+  // tour ends and a new one starts (which recreates the overlay from
+  // scratch). Patch the current overlay's style directly here instead, so
+  // it takes effect immediately -- exactly what a fresh creation would
+  // have set. `getState()` (unlike the config store) is per-Driver-
+  // instance, so this only ever touches `id`'s own overlay.
+  const overlaySvg = drivers[id].getState("__overlaySvg");
+  const overlayPath = overlaySvg && overlaySvg.firstElementChild;
+  if (overlayPath) {
+    if (typeof merged.overlayColor === "string") {
+      overlayPath.style.fill = merged.overlayColor;
+    }
+    if (typeof merged.overlayOpacity !== "undefined") {
+      overlayPath.style.opacity = String(merged.overlayOpacity);
+    }
+  }
+});
+// --- WP4 end ---
+
+Shiny.addCustomMessageHandler("cicerone-start", function (opts) {
+  const id = opts.id;
+  if (!drivers[id]) return console.warn("cicerone: no tour", id);
+  const driver = drivers[id];
+  let config = driver.getConfig();
+
+  // --- WP5 begin: run_once persisted-completed suppression + resume ---
+  // Placed before anything else in this handler (including WP7's
+  // exclusive/wait_for_visible logic below): a suppressed start must
+  // never destroy another tour or touch the DOM at all.
+  if (isRunOnceCompleted(id)) {
+    const record = persistRecords[id];
+    const totalSteps = (config.steps || []).length;
+    const index = record && typeof record.idx === "number" ? record.idx : null;
+    emitInput(id, "ended", {
+      reason: "suppressed",
+      completed: false,
+      index: index,
+      total_steps: totalSteps,
+    });
+    emitEvent(id, "ended", { index: index, total_steps: totalSteps });
+    return;
+  }
+  if (opts.resume) {
+    const idx = resumeIndex(id);
+    if (typeof idx === "number") opts.step = idx;
+  }
+  // --- WP5 end ---
+
+  // --- WP7 begin: exclusive ---
+  // `exclusive` defaults to TRUE R-side (see build_config()); anything
+  // other than an explicit `false` here keeps that default even if the
+  // key were ever absent from config.
+  if (config.exclusive !== false) {
+    Object.keys(drivers).forEach((otherId) => {
+      const other = drivers[otherId];
+      if (otherId !== id && other && other.isActive()) {
+        pendingReason[otherId] = "superseded";
+        other.destroy();
+      }
+    });
+  }
+  // --- WP7 end ---
+
+  // --- WP4 begin: show_if filtering ---
+  // Evaluate every step's `show_if` predicate against the FULL prepared
+  // list (`allSteps[id]`, not `config.steps` -- a previous drive() may
+  // have already narrowed `config.steps` to a filtered subset, and
+  // filtering an already-filtered list would compound instead of
+  // re-evaluate fresh), then push the result through `setSteps()` so
+  // driver.js only ever drives the visible steps. `setSteps()` preserves
+  // every other config key (it internally calls `setConfig({
+  // ...getConfig(), steps})`, see the cicerone-set-config comment above),
+  // so it is safe to call unconditionally here, including for a tour
+  // with no `show_if` steps at all (filtered === full in that case).
+  //
+  // The requested 0-based index (against the FULL list) is mapped to its
+  // position in the filtered list: a filtered-out requested step starts
+  // at the next visible one after it (by original position). If none of
+  // the full list is visible from the requested index onward, no tour is
+  // driven; `no_visible_steps` is emitted instead. Restored to the full
+  // list in the wrapped `onDestroyed` (steps.js's prepareConfig) so the
+  // next `$start()` re-evaluates every predicate fresh (e.g. against a
+  // checkbox that changed since the last run).
+  const full = allSteps[id] || config.steps || [];
+  const requestedIndex = typeof opts.step === "number" ? opts.step : 0;
+  const filtered = [];
+  const originalIndexes = [];
+  full.forEach((step, i) => {
+    let visible = true;
+    if (typeof step.showIf === "function") {
+      try {
+        visible = !!step.showIf(step, { config, driver, index: i });
+      } catch (e) {
+        visible = true;
+        console.warn("cicerone: show_if predicate threw; showing step", i, e);
+      }
+    }
+    if (visible) {
+      filtered.push(step);
+      originalIndexes.push(i);
+    }
+  });
+
+  driver.setSteps(filtered);
+  config = driver.getConfig();
+
+  if (filtered.length === 0) {
+    emitEvent(id, "no_visible_steps", {
+      index: null,
+      highlighted: null,
+      total_steps: 0,
+    });
+    return;
+  }
+
+  let mappedIndex = originalIndexes.findIndex((orig) => orig >= requestedIndex);
+  if (mappedIndex === -1) mappedIndex = filtered.length - 1;
+  opts.step = mappedIndex;
+  // --- WP4 end ---
+
+  const driveNow = () => {
+    driver.drive(opts.step);
+    // --- WP7 begin: render confirmation ---
+    // driver.js's own destroy() is synchronous and there is no teardown
+    // timer, so a tour that is isActive() one frame after drive() but has
+    // no `.driver-popover` in the DOM did not actually render. No
+    // automatic retry (see NEWS/plan risk N1): the cause is unproven, and
+    // a retry loop risks masking a real bug. Reproduction attempt: WP7's
+    // NAS-shape e2e test (test-e2e-exclusive.R).
+    //
+    // Design note (beyond the plan's literal wording): only flag this when
+    // the active step actually defines a `popover` -- a step with no
+    // title/description/on_* (`el` alone) deliberately gets no popover
+    // from driver.js (see `J()`/`U()` in driver.js.mjs, gated on
+    // `n.popover`), so "no `.driver-popover` in the DOM" is expected there,
+    // not a failed render. Checked against `getActiveStep()` (the step
+    // driver.js actually landed on), not the requested target step, since
+    // `skipMissingElement` may have moved the active step already.
+    window.requestAnimationFrame(() => {
+      const activeStep = driver.getActiveStep();
+      if (
+        driver.isActive() &&
+        activeStep &&
+        activeStep.popover &&
+        !document.querySelector(".driver-popover")
+      ) {
+        emitEvent(id, "start_failed", getStateData(driver));
+        console.warn(
+          "cicerone: tour", id, "is active but rendered no popover",
+        );
+      }
+    });
+    // --- WP7 end ---
+  };
+
+  // --- WP7 begin: wait_for_visible at start ---
+  const steps = config.steps || [];
+  const startIndex = opts.step || 0;
+  const targetStep = steps[startIndex];
+  const waitMs = effectiveWaitForVisible(targetStep, config);
+  if (waitMs > 0 && targetStep && targetStep.element) {
+    waitForVisible(targetStep.element, { timeout: waitMs, requireVisible: true }).then(
+      (result) => {
+        if (!result.visible) {
+          emitEvent(id, "anchor_timeout", {
+            index: startIndex,
+            highlighted: stripHash(targetStep.element),
+            total_steps: steps.length,
+          });
+        }
+        driveNow();
+      },
+    );
+  } else {
+    driveNow();
+  }
+  // --- WP7 end ---
+});
+
+// --- WP7 begin: destroy_all() ---
+// Shiny's addCustomMessageHandler() requires a callback of arity 1 (it
+// throws "handler must be a function that takes one argument" otherwise,
+// synchronously, at registration time -- which, bundled, aborts the rest
+// of this module's evaluation); `opts` is unused here, `destroy_all()`
+// sends an empty payload.
+Shiny.addCustomMessageHandler("cicerone-destroy-all", function (opts) {
+  Object.keys(drivers).forEach((id) => {
+    const driver = drivers[id];
+    if (driver && driver.isActive()) {
+      pendingReason[id] = "programmatic";
+      driver.destroy();
+    }
+  });
+});
+// --- WP7 end ---
+
+// --- WP5 begin: cicerone-forget / cicerone-persist-record ---
+// R -> JS push of an adapter-read record: sent right after
+// `cicerone-init` from `$init()` (once `persist$read()` resolves), and
+// available for any later push the same shape would need.
+Shiny.addCustomMessageHandler("cicerone-persist-record", function (opts) {
+  setPushedRecord(opts.id, opts.record);
+  emitInput(opts.id, "seen", opts.record || null);
+});
+
+// `$forget()`: clear the JS-side cache (and, for the cookie backend,
+// the cookie entry itself -- forgetPersisted() checks persistMode
+// itself). The adapter backend's `forget(id)` callback runs
+// server-side, in R/steps.R's `$forget()`, not here.
+Shiny.addCustomMessageHandler("cicerone-forget", function (opts) {
+  forgetPersisted(opts.id);
+  emitInput(opts.id, "seen", null);
+});
+// --- WP5 end ---
 
 Shiny.addCustomMessageHandler("cicerone-reset", function (opts) {
   if (!drivers[opts.id]) return;

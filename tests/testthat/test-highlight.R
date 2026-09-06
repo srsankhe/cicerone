@@ -157,7 +157,14 @@ test_that("initialise's formals match Cicerone$new() apart from a documented all
   # `mathjax` is a Cicerone-only convenience that wraps each step's
   # `on_highlighted` hook for MathJax typesetting; the functional API has
   # no per-step loop to wrap into, so it has no `initialise()` equivalent.
-  allowlist <- c("mathjax")
+  # `exclusive`/`wait_for_visible` (WP7) gate `cicerone-start`, a message
+  # `initialise()`'s single-highlight ("cicerone-highlight-man") path
+  # never sends; scoped to Cicerone$new()/$step() only, see NEWS.
+  # `persist`/`version` (WP5) need a stable object to read/write a
+  # record against and to run `$forget()`/`$start(resume = )` on later;
+  # `initialise()` keeps no such object between calls, so persistence
+  # is Cicerone-only, see NEWS.
+  allowlist <- c("mathjax", "exclusive", "wait_for_visible", "persist", "version")
 
   extra <- setdiff(
     names(formals(Cicerone$public_methods$initialize)),

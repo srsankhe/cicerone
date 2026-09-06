@@ -106,6 +106,114 @@
   mode, automatically. With no theme applied, every popover's computed
   style is unchanged from driver.js's own default look.
 
+- **Behaviour change:** `Cicerone$new(exclusive = )` now defaults to
+  `TRUE`. Starting a tour destroys every other currently active tour
+  first (their `_ended` fires with `reason = "superseded"`). driver.js
+  gives each live tour instance its own popover and overlay, and always
+  ids the popover element `driver-popover-content`; two tours started at
+  once produced duplicate DOM ids and, in at least one consumer, an
+  orphaned popover left over from the first tour. Set `exclusive =
+  FALSE` to keep the pre-2.1.0 behaviour of overlapping tours.
+- New `destroy_all()` function: destroys every active tour on the page in
+  one call, regardless of `id`, with `reason = "programmatic"`. A
+  session-wide teardown, independent of `exclusive`.
+- New `wait_for_visible` argument on `Cicerone$new()` and `$step()`:
+  milliseconds to wait, before moving to a step, for its element to not
+  just exist but have a non-zero size (e.g. an element in a Shiny tab
+  that has not been shown yet). Implemented by cicerone itself (not
+  driver.js), so it only gates moves cicerone makes; on timeout it emits
+  `{id}_cicerone_event` with `type = "anchor_timeout"` and moves anyway,
+  unless `skip_missing_element` applies, in which case the step is
+  skipped.
+- New `wait_for_element()` function: a standalone element-readiness wait
+  that needs no tour, for gating server-side logic on UI that renders
+  asynchronously. Result arrives on `{id}_cicerone_anchor` (see
+  `?cicerone_inputs`).
+- New `_event` types: `"start_failed"` (a tour is active but rendered no
+  popover one frame after `$start()`; not retried automatically -- the
+  e2e reproduction attempt (chaining a second tour's `$start()` off a
+  click observer, modelling NAS's "no-op start" shape) did not observe
+  this race in three consecutive runs; see the WP7 report) and
+  `"anchor_timeout"` (see `wait_for_visible` above).
+
+- New `Cicerone$set_steps()`: sends the current `$step()`-built list to
+  the browser and replaces whatever steps the live tour is driving.
+  Typically paired with the new `$clear_steps()` (empties the list,
+  chainable): `tour$clear_steps()$step(...)$step(...)$set_steps()`.
+  Errors if called before `$init()` (there is no live tour to update).
+- New `Cicerone$set_config()`: updates a live tour's configuration after
+  `$init()` without rebuilding it, accepting the same named arguments as
+  `$new()`. Only the arguments you pass are sent and changed; everything
+  else is left as it already is. Steps are unaffected -- use
+  `$set_steps()` for those.
+- New `step(show_if = )`: a JavaScript predicate
+  (`"(step, opts) => boolean"`), re-evaluated against every step on each
+  `$start()` (not once at `$init()`), so a predicate reading live
+  DOM/input state can show a different set of steps on different runs.
+  A step whose predicate returns `false` is skipped for that run and
+  does not count towards `total_steps`. A predicate that throws is
+  treated as `true` and logged with `console.warn`. New `_event` type
+  `"no_visible_steps"`: every step's `show_if` returned `false`, so the
+  tour did not start.
+- Internal: the per-step/per-config wrapping logic `cicerone-init` used
+  inline is now `prepareSteps()`/`prepareConfig()` in a new
+  `srcjs/exts/steps.js`, shared with `cicerone-set-steps`/
+  `cicerone-set-config` and with `show_if` filtering in `cicerone-start`.
+  No user-facing change.
+- Tour persistence: `Cicerone$new()` gains `persist` and `version`.
+  cicerone now owns the state machine that decides when a persisted
+  tour has been seen, run once, or left mid-way -- consumers only
+  choose where the record lives.
+  - `persist = NULL` (the default): no persistence, nothing changes,
+    cicerone never writes a cookie unless asked.
+  - `persist = "cookie"`: cicerone manages one cookie named `cicerone`
+    (`path=/; SameSite=Lax; max-age=31536000`, plus `Secure` over
+    https), a URL-encoded JSON object keyed by tour id, written and
+    read entirely client-side. Read it server-side with the new
+    `tour_state(session, id)`, a synchronous parse of
+    `session$request$HTTP_COOKIE` (the WebSocket handshake header;
+    verified against `shiny`'s own `HTTP_*` Rook-style fields) --
+    useful for deciding what to render before the new `_seen` input
+    (below) arrives. A cookie write made during the live session is
+    not visible back in `session$request` until the page reloads; the
+    live inputs cover the rest.
+  - `persist = list(read = function(id), write = function(id, record),
+    forget = function(id))`: a server-side adapter instead of a
+    cookie -- e.g. a database, or (see `?Cicerone`'s Persistence
+    section for a worked example) `session$userData`. cicerone calls
+    `read()` once at `$init()`, `write()` from observers it registers
+    internally on the existing `_started`/`_state`/`_ended` inputs, and
+    `forget()` from the new `$forget()` method. An error in any
+    callback is caught, reported with `warning()`, and does not stop
+    the tour. `persist` combined with an auto-generated `id` is a
+    `stop()`: persistence needs a stable id across page loads.
+  - The record is `list(v, status, idx, n, t)`: `v` the tour's
+    `version` at write time, `status` (`"in_progress"`, `"completed"`,
+    or `"dismissed"`), `idx` the last 0-based step index shown, `n` how
+    many times `$start()` has run, `t` an ISO-8601 UTC timestamp. A
+    stored record whose `v` does not match the tour's current
+    `version` reads as if there were no record at all -- cicerone does
+    not migrate old records.
+  - New `{id}_cicerone_seen` input: fires once at `$init()` when
+    `persist` is set, with the record or `NULL` (see
+    `?cicerone_inputs`).
+  - `$init(run_once = TRUE)`: if the persisted record's `status` is
+    already `"completed"`, the next `$start()` does not drive the tour
+    and `_ended` fires with `reason = "suppressed"` instead (new
+    reason, alongside `"superseded"`). `run_once`'s own per-session
+    counter (unchanged) still applies on top of this.
+  - `$start(step = 1, resume = FALSE)`: with `resume = TRUE`, starts at
+    the persisted `idx` instead of `step` when the record's `status` is
+    `"in_progress"` (a tour abandoned mid-way, not completed or
+    dismissed).
+  - New `$forget(session)` method: removes the persisted record (the
+    cookie entry, or the adapter's `forget(id)`) and fires `_seen` with
+    `NULL`.
+  - Both backends write the record with the same field-for-field
+    shape for the same sequence of lifecycle events (verified in the
+    e2e suite by comparing the cookie's record with the adapter's
+    after an identical scripted run).
+
 # cicerone 2.0.0
 
 Major upgrade: the bundled driver.js was updated from 0.9.8 to 1.8.0, a

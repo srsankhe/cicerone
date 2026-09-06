@@ -407,3 +407,119 @@ test_that("step-level progress_style = 'dots' forces show_progress on for that s
 test_that("an invalid step-level progress_style errors", {
   expect_error(Cicerone$new()$step("plot", title = "x", progress_style = "spinner"))
 })
+# --- WP7 begin: exclusive / wait_for_visible / destroy_all unit tests ---
+
+test_that("exclusive defaults to TRUE in the init payload", {
+  s <- make_session()
+  g <- Cicerone$new(id = "wp7_excl_default")$step("plot", title = "x")
+  g$init(session = s)
+
+  expect_true(s$msgs[[1]]$message$globals$exclusive)
+})
+
+test_that("exclusive = FALSE is forwarded to the init payload", {
+  s <- make_session()
+  g <- Cicerone$new(id = "wp7_excl_false", exclusive = FALSE)$step("plot", title = "x")
+  g$init(session = s)
+
+  expect_false(s$msgs[[1]]$message$globals$exclusive)
+})
+
+test_that("wait_for_visible lands at tour and step level", {
+  s <- make_session()
+  g <- Cicerone$new(
+    id = "wp7_wfv", wait_for_visible = 2000
+  )$step(
+    "plot", title = "x", wait_for_visible = 500
+  )$step(
+    "table", title = "y"
+  )
+  g$init(session = s)
+
+  gl <- s$msgs[[1]]$message$globals
+  st <- s$msgs[[1]]$message$steps
+  expect_equal(gl$waitForVisible, 2000)
+  expect_equal(st[[1]]$waitForVisible, 500)
+  expect_null(st[[2]]$waitForVisible)
+})
+
+test_that("destroy_all() sends cicerone-destroy-all", {
+  s <- make_session()
+  destroy_all(session = s)
+
+  expect_equal(s$msgs[[1]]$type, "cicerone-destroy-all")
+})
+
+test_that("destroy_all() falls back to the default reactive domain", {
+  s <- make_session()
+  shiny::withReactiveDomain(s, destroy_all())
+
+  expect_equal(s$msgs[[1]]$type, "cicerone-destroy-all")
+})
+# --- WP7 end ---
+# --- WP4 begin: mutable tours / show_if ---
+
+test_that("$set_steps() sends cicerone-set-steps with the current step payload", {
+  s <- make_session()
+  g <- Cicerone$new(id = "wp4_steps")$step("el1", title = "x")
+  g$init(session = s)
+
+  g$set_steps(session = s)
+
+  expect_equal(s$msgs[[2]]$type, "cicerone-set-steps")
+  expect_equal(s$msgs[[2]]$message$id, "wp4_steps")
+  expect_equal(s$msgs[[2]]$message$steps, g$get_steps())
+})
+
+test_that("$set_steps() before $init() errors", {
+  g <- Cicerone$new(id = "wp4_steps_no_init")$step("el1", title = "x")
+  s <- make_session()
+  expect_error(g$set_steps(session = s), "init")
+})
+
+test_that("$clear_steps() empties the step list and is chainable", {
+  g <- Cicerone$new()$step("el1", title = "x")$step("el2", title = "y")
+  expect_length(g$get_steps(), 2)
+
+  out <- g$clear_steps()$step("el3", title = "z")
+  expect_identical(out, g)
+  expect_length(g$get_steps(), 1)
+  expect_equal(g$get_steps()[[1]]$element, "#el3")
+})
+
+test_that("$set_config(overlay_opacity = ) sends only overlayOpacity (and id)", {
+  s <- make_session()
+  g <- Cicerone$new(id = "wp4_config")$step("el1", title = "x")
+  g$init(session = s)
+
+  g$set_config(overlay_opacity = .2, session = s)
+
+  msg <- s$msgs[[2]]
+  expect_equal(msg$type, "cicerone-set-config")
+  expect_equal(msg$message$id, "wp4_config")
+  expect_equal(msg$message$globals, list(overlayOpacity = .2))
+})
+
+test_that("$set_config() falls back to the default reactive domain", {
+  s <- make_session()
+  g <- Cicerone$new(id = "wp4_config_domain")
+  shiny::withReactiveDomain(s, g$set_config(overlay_opacity = .3))
+
+  expect_equal(s$msgs[[1]]$type, "cicerone-set-config")
+})
+
+test_that("show_if lands as showIf", {
+  g <- Cicerone$new()$step(
+    "el1", title = "x",
+    show_if = "(step, opts) => document.querySelector('#x').checked"
+  )
+  expect_equal(
+    g$get_steps()[[1]]$showIf,
+    "(step, opts) => document.querySelector('#x').checked"
+  )
+})
+
+test_that("a non-string show_if errors", {
+  expect_error(Cicerone$new()$step("el1", title = "x", show_if = TRUE))
+})
+# --- WP4 end ---
