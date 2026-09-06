@@ -39,6 +39,8 @@ Each carries a list with the hint's \code{id} and \code{element}.
     \item \href{#method-Hints-dismiss}{\code{Hints$dismiss()}}
     \item \href{#method-Hints-restore}{\code{Hints$restore()}}
     \item \href{#method-Hints-refresh}{\code{Hints$refresh()}}
+    \item \href{#method-Hints-get_id}{\code{Hints$get_id()}}
+    \item \href{#method-Hints-get_hints}{\code{Hints$get_hints()}}
     \item \href{#method-Hints-clone}{\code{Hints$clone()}}
   }
 }
@@ -117,6 +119,7 @@ set of hints.}
   on_button_click = NULL,
   on_open = NULL,
   on_dismiss = NULL,
+  on_popover_render = NULL,
   beacon_side = NULL,
   beacon_align = NULL,
   beacon_animate = NULL,
@@ -142,6 +145,8 @@ button is clicked.}
       \item{\code{on_open}}{JavaScript function called when this hint is opened.}
       \item{\code{on_dismiss}}{JavaScript function called when this hint is
 dismissed.}
+      \item{\code{on_popover_render}}{JavaScript function called when this hint's
+popover is rendered.}
       \item{\code{beacon_side}}{Side of the element the beacon is placed on.}
       \item{\code{beacon_align}}{Alignment of the beacon along the chosen side.}
       \item{\code{beacon_animate}}{Whether the beacon pulses.}
@@ -335,6 +340,34 @@ attempts to get the session with \code{\link[shiny:getDefaultReactiveDomain]{shi
   }
   \subsection{Details}{
     Refresh beacon and popover positions.
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-Hints-get_id"></a>}}
+\if{latex}{\out{\hypertarget{method-Hints-get_id}{}}}
+\subsection{\code{Hints$get_id()}}{
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{Hints$get_id()}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Details}{
+    Retrieve this set of hints' unique identifier.
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-Hints-get_hints"></a>}}
+\if{latex}{\out{\hypertarget{method-Hints-get_hints}{}}}
+\subsection{\code{Hints$get_hints()}}{
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{Hints$get_hints()}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Details}{
+    Retrieve the list of hints as they will be sent to driver.js.
   }
 }
 
