@@ -3,6 +3,216 @@
 - Internal `srcjs/` split (`util.js`/`bridge.js`/`tour.js`/`hints.js`) and a
   new shinytest2 end-to-end test harness (`CICERONE_E2E=true`). No
   user-facing change.
+- Documentation: `"over"` removed from the documented `side` values on
+  `Cicerone$step()` and `highlight()`. It was never functional for a
+  step with a real element — driver.js only renders a centred popover
+  "over" the page for its own element-less steps, not in response to a
+  user-supplied `side`. No code change; for a centred popover, omit
+  `el` and use `title`/`description` instead.
+- Documentation: `{id}_cicerone_state$previous` is now documented as a
+  **deprecated** alias of `highlighted` (it does not hold the
+  previously highlighted element, despite the name), kept only for
+  cicerone < 2.0.0 compatibility; `before_previous` is the field that
+  holds the previously highlighted element. The field itself is
+  unchanged.
+- Documentation: JavaScript hook callbacks' `opts` argument now
+  documents the `index` field driver.js provides, alongside `config`,
+  `state`, and `driver`.
+
+- New Shiny inputs for tour lifecycle and reason detection, fixing
+  upstream JohnCoene/cicerone#59, #62 and #69 (upstream is archived; these
+  are fixed here, in the fork, only):
+  - `{id}_cicerone_started`: fires once per `$start()`, with the 0-based
+    `index` and `total_steps` of the first highlighted step. A later
+    `$move_to()` does not re-fire it.
+  - `{id}_cicerone_ended`: fires whenever a tour is destroyed, with
+    `reason` (`"done"`, `"close"`, `"programmatic"` or `"dismissed"`) and
+    `completed` (`TRUE` exactly when `reason` is `"done"`), plus `index`
+    and `total_steps`. `reason` distinguishes the Done button, the close
+    button, a server-side `$reset()`/`$destroy()`, and everything else
+    (Escape, an overlay click, or any other dismissal).
+  - `{id}_cicerone_event`: a unified event stream, one input for every
+    lifecycle event (`started`, `highlighted`, `next`, `previous`,
+    `done`, `close`, `ended`, `hint_opened`, `hint_dismissed`,
+    `hint_button`), each with `type`, `index`, `element`, `total_steps`
+    and an ISO-8601 `time`. Fires in addition to the specific input above.
+  - `{id}_cicerone_reset` and `cicerone_reset` are unchanged: same
+    payload (`TRUE`), same firing conditions. Prefer `_ended` for the
+    reason a tour stopped.
+  - New `$get_started()`/`$get_ended()` methods on `Cicerone`, reading the
+    two new inputs. See `?cicerone_inputs` for the full table of every
+    Shiny input the package sets.
+  - A tour's Done button now works even when only `on_next` (not
+    `on_done`) is set on the last step, matching the pre-2.1.0
+    `onNextClick` fallback: driver.js 1.x stops calling `onNextClick` on
+    the last step once `onDoneClick` is defined anywhere, which cicerone
+    now always does internally to detect `reason = "done"`.
+
+- Hints: a hint's `on_button_click` no longer replaces the default
+  dismiss-on-click behaviour. Previously, defining `on_button_click` (or
+  cicerone's own internal wrapping) meant the hint's popover button
+  stopped auto-dismissing the hint, mirroring the `onCloseClick`
+  replacement behaviour in driver.js tours; cicerone now calls
+  `dismiss()` after the hook runs, unless the hook returns `false`.
+- `initialise()` and `highlight()` now accept every option their `Cicerone`/
+  `$step()` equivalents accept. `initialise()` gains `allow_scroll`,
+  `disable_active_interaction`, `advance_on_click`, `skip_missing_element`,
+  `wait_for_element`, `disable_buttons`, `show_progress`, `progress_text`,
+  `duration`, and all ten config-level `on_*` hooks. `highlight()` gains
+  `show_progress`, `progress_text`, `on_popover_render`, `on_next`,
+  `on_prev`, `on_close`, `on_done`, `disable_active_interaction`,
+  `advance_on_click`, `skip_missing_element`, `wait_for_element`, and
+  `data`.
+- `Hints$hint()` gains `on_popover_render`, mapped to the hint popover's
+  `onPopoverRender`.
+- New read-only getters: `Cicerone$get_id()`, `Cicerone$get_steps()`,
+  `Hints$get_id()`, `Hints$get_hints()`.
+- New step options `advance_on` and `advance_when` (`step()` and
+  `highlight()`), letting a step advance for reasons other than
+  clicking the highlighted element:
+  - `advance_on`: a selector string (event defaults to `"click"`) or
+    `list(el = "...", event = "...")`. Unlike driver.js's own
+    `advance_on_click`, which only reacts to the highlighted element,
+    `advance_on` reacts to a named event on any element on the page.
+  - `advance_when`: a JavaScript predicate `(step, opts) => boolean`,
+    evaluated once when the step is highlighted and again on every DOM
+    mutation and `input`/`change` event until it returns `true`.
+  - Both may be set on the same step; whichever fires first advances
+    the tour and disarms the other. For a server-driven alternative,
+    use `observeEvent(input$x, tour$move_forward())`.
+  - New `_event` type `"advance"`, with `element` the triggering
+    selector (`advance_on`) or the currently highlighted element
+    (`advance_when`), without the leading `#`.
+  - On the last step, either mechanism completes the tour with
+    `_ended$reason = "done"`. `$move_forward()` on the last step now
+    reports `"done"` as well (driver.js's `moveNext()` destroys directly
+    without routing through the Done button's hooks, so cicerone tags
+    the reason itself).
+- New `progress_style` argument on `Cicerone$new()`/`$step()` and
+  `initialise()`/`highlight()`: `"text"` (the default, unchanged), `"bar"`,
+  or `"dots"`. A step-level `progress_style` overrides the tour's default
+  for that one step. `"bar"`/`"dots"` force `show_progress` on regardless
+  of the `show_progress` argument, since the CSS that renders them needs
+  driver.js's own progress element in the DOM. Not wired for a standalone
+  `highlight()` call made without a preceding `initialise()`/`$init()` for
+  the same id — that ad hoc popover has no config to wrap, so it falls
+  back to plain text progress.
+- New `cicerone_theme()`: emits a `<style>` tag setting the CSS custom
+  properties `custom.css` reads for popover surface/text/accent/
+  radius/font-size/shadow/button/progress colors, scoped to `.driver-popover`
+  or to a `selector` you pass (e.g. a `popover_class`). `preset = "bootstrap"`
+  maps every property to the matching bslib/Bootstrap 5.3+ `--bs-*`
+  variable, so a themed tour follows the app's bslib theme, including dark
+  mode, automatically. With no theme applied, every popover's computed
+  style is unchanged from driver.js's own default look.
+
+- **Behaviour change:** `Cicerone$new(exclusive = )` now defaults to
+  `TRUE`. Starting a tour destroys every other currently active tour
+  first (their `_ended` fires with `reason = "superseded"`). driver.js
+  gives each live tour instance its own popover and overlay, and always
+  ids the popover element `driver-popover-content`; two tours started at
+  once produced duplicate DOM ids and, in at least one consumer, an
+  orphaned popover left over from the first tour. Set `exclusive =
+  FALSE` to keep the pre-2.1.0 behaviour of overlapping tours.
+- New `destroy_all()` function: destroys every active tour on the page in
+  one call, regardless of `id`, with `reason = "programmatic"`. A
+  session-wide teardown, independent of `exclusive`.
+- New `wait_for_visible` argument on `Cicerone$new()` and `$step()`:
+  milliseconds to wait, before moving to a step, for its element to not
+  just exist but have a non-zero size (e.g. an element in a Shiny tab
+  that has not been shown yet). Implemented by cicerone itself (not
+  driver.js), so it only gates moves cicerone makes; on timeout it emits
+  `{id}_cicerone_event` with `type = "anchor_timeout"` and moves anyway,
+  unless `skip_missing_element` applies, in which case the step is
+  skipped.
+- New `wait_for_element()` function: a standalone element-readiness wait
+  that needs no tour, for gating server-side logic on UI that renders
+  asynchronously. Result arrives on `{id}_cicerone_anchor` (see
+  `?cicerone_inputs`).
+- New `_event` types: `"start_failed"` (a tour is active but rendered no
+  popover one frame after `$start()`; not retried automatically -- the
+  e2e reproduction attempt (chaining a second tour's `$start()` off a
+  click observer, modelling NAS's "no-op start" shape) did not observe
+  this race in three consecutive runs; see the WP7 report) and
+  `"anchor_timeout"` (see `wait_for_visible` above).
+
+- New `Cicerone$set_steps()`: sends the current `$step()`-built list to
+  the browser and replaces whatever steps the live tour is driving.
+  Typically paired with the new `$clear_steps()` (empties the list,
+  chainable): `tour$clear_steps()$step(...)$step(...)$set_steps()`.
+  Errors if called before `$init()` (there is no live tour to update).
+- New `Cicerone$set_config()`: updates a live tour's configuration after
+  `$init()` without rebuilding it, accepting the same named arguments as
+  `$new()`. Only the arguments you pass are sent and changed; everything
+  else is left as it already is. Steps are unaffected -- use
+  `$set_steps()` for those.
+- New `step(show_if = )`: a JavaScript predicate
+  (`"(step, opts) => boolean"`), re-evaluated against every step on each
+  `$start()` (not once at `$init()`), so a predicate reading live
+  DOM/input state can show a different set of steps on different runs.
+  A step whose predicate returns `false` is skipped for that run and
+  does not count towards `total_steps`. A predicate that throws is
+  treated as `true` and logged with `console.warn`. New `_event` type
+  `"no_visible_steps"`: every step's `show_if` returned `false`, so the
+  tour did not start.
+- Internal: the per-step/per-config wrapping logic `cicerone-init` used
+  inline is now `prepareSteps()`/`prepareConfig()` in a new
+  `srcjs/exts/steps.js`, shared with `cicerone-set-steps`/
+  `cicerone-set-config` and with `show_if` filtering in `cicerone-start`.
+  No user-facing change.
+- Tour persistence: `Cicerone$new()` gains `persist` and `version`.
+  cicerone now owns the state machine that decides when a persisted
+  tour has been seen, run once, or left mid-way -- consumers only
+  choose where the record lives.
+  - `persist = NULL` (the default): no persistence, nothing changes,
+    cicerone never writes a cookie unless asked.
+  - `persist = "cookie"`: cicerone manages one cookie named `cicerone`
+    (`path=/; SameSite=Lax; max-age=31536000`, plus `Secure` over
+    https), a URL-encoded JSON object keyed by tour id, written and
+    read entirely client-side. Read it server-side with the new
+    `tour_state(session, id)`, a synchronous parse of
+    `session$request$HTTP_COOKIE` (the WebSocket handshake header;
+    verified against `shiny`'s own `HTTP_*` Rook-style fields) --
+    useful for deciding what to render before the new `_seen` input
+    (below) arrives. A cookie write made during the live session is
+    not visible back in `session$request` until the page reloads; the
+    live inputs cover the rest.
+  - `persist = list(read = function(id), write = function(id, record),
+    forget = function(id))`: a server-side adapter instead of a
+    cookie -- e.g. a database, or (see `?Cicerone`'s Persistence
+    section for a worked example) `session$userData`. cicerone calls
+    `read()` once at `$init()`, `write()` from observers it registers
+    internally on the existing `_started`/`_state`/`_ended` inputs, and
+    `forget()` from the new `$forget()` method. An error in any
+    callback is caught, reported with `warning()`, and does not stop
+    the tour. `persist` combined with an auto-generated `id` is a
+    `stop()`: persistence needs a stable id across page loads.
+  - The record is `list(v, status, idx, n, t)`: `v` the tour's
+    `version` at write time, `status` (`"in_progress"`, `"completed"`,
+    or `"dismissed"`), `idx` the last 0-based step index shown, `n` how
+    many times `$start()` has run, `t` an ISO-8601 UTC timestamp. A
+    stored record whose `v` does not match the tour's current
+    `version` reads as if there were no record at all -- cicerone does
+    not migrate old records.
+  - New `{id}_cicerone_seen` input: fires once at `$init()` when
+    `persist` is set, with the record or `NULL` (see
+    `?cicerone_inputs`).
+  - `$init(run_once = TRUE)`: if the persisted record's `status` is
+    already `"completed"`, the next `$start()` does not drive the tour
+    and `_ended` fires with `reason = "suppressed"` instead (new
+    reason, alongside `"superseded"`). `run_once`'s own per-session
+    counter (unchanged) still applies on top of this.
+  - `$start(step = 1, resume = FALSE)`: with `resume = TRUE`, starts at
+    the persisted `idx` instead of `step` when the record's `status` is
+    `"in_progress"` (a tour abandoned mid-way, not completed or
+    dismissed).
+  - New `$forget(session)` method: removes the persisted record (the
+    cookie entry, or the adapter's `forget(id)`) and fires `_seen` with
+    `NULL`.
+  - Both backends write the record with the same field-for-field
+    shape for the same sequence of lifecycle events (verified in the
+    e2e suite by comparing the cookie's record with the adapter's
+    after an identical scripted run).
 
 # cicerone 2.0.0
 

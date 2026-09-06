@@ -42,6 +42,25 @@ test_that("hint requires el", {
   expect_error(Hints$new()$hint())
 })
 
+test_that("hint forwards on_popover_render to popover.onPopoverRender", {
+  s <- make_session()
+  h <- Hints$new(id = "hp")$hint(
+    "plot", title = "x", on_popover_render = "function(popover, opts){}"
+  )
+  h$init(session = s)
+
+  expect_type(s$msgs[[1]]$message$hints[[1]]$popover$onPopoverRender, "character")
+})
+
+test_that("get_id and get_hints return what init sends", {
+  s <- make_session()
+  h <- Hints$new(id = "hg")$hint("plot", title = "x")$hint("table", title = "y")
+  h$init(session = s)
+
+  expect_equal(h$get_id(), "hg")
+  expect_equal(h$get_hints(), s$msgs[[1]]$message$hints)
+})
+
 test_that("global beacon options land in the config", {
   s <- make_session()
   h <- Hints$new(
