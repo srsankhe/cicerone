@@ -1,3 +1,9 @@
+# cicerone 2.1.0 (development)
+
+- Internal `srcjs/` split (`util.js`/`bridge.js`/`tour.js`/`hints.js`) and a
+  new shinytest2 end-to-end test harness (`CICERONE_E2E=true`). No
+  user-facing change.
+
 # cicerone 2.0.0
 
 Major upgrade: the bundled driver.js was updated from 0.9.8 to 1.8.0, a
