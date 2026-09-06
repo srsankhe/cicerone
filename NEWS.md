@@ -3,6 +3,21 @@
 - Internal `srcjs/` split (`util.js`/`bridge.js`/`tour.js`/`hints.js`) and a
   new shinytest2 end-to-end test harness (`CICERONE_E2E=true`). No
   user-facing change.
+- Documentation: `"over"` removed from the documented `side` values on
+  `Cicerone$step()` and `highlight()`. It was never functional for a
+  step with a real element — driver.js only renders a centred popover
+  "over" the page for its own element-less steps, not in response to a
+  user-supplied `side`. No code change; for a centred popover, omit
+  `el` and use `title`/`description` instead.
+- Documentation: `{id}_cicerone_state$previous` is now documented as a
+  **deprecated** alias of `highlighted` (it does not hold the
+  previously highlighted element, despite the name), kept only for
+  cicerone < 2.0.0 compatibility; `before_previous` is the field that
+  holds the previously highlighted element. The field itself is
+  unchanged.
+- Documentation: JavaScript hook callbacks' `opts` argument now
+  documents the `index` field driver.js provides, alongside `config`,
+  `state`, and `driver`.
 
 - New Shiny inputs for tour lifecycle and reason detection, fixing
   upstream JohnCoene/cicerone#59, #62 and #69 (upstream is archived; these

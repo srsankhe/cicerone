@@ -4,7 +4,9 @@
 #'
 #' @section Side and alignment:
 #' driver.js 1.x positions popovers with `side` (`left`, `right`,
-#' `top`, `bottom`, `over`) and `align` (`start`, `center`, `end`).
+#' `top`, `bottom`) and `align` (`start`, `center`, `end`). For a
+#' centred popover with no target element, omit `el`; driver.js
+#' renders it over the page.
 #' The pre-2.0.0 `position` argument is still accepted and mapped to
 #' the equivalent `side`/`align` pair:
 #' * `left`, `right`, `top`, `bottom`
@@ -17,7 +19,8 @@
 #' @section JavaScript callbacks:
 #' All `on_*` arguments take a string of JavaScript defining a function.
 #' Tour hooks receive `(element, step, opts)` where `opts` contains
-#' `config`, `state` and `driver`. For example:
+#' `config`, `state`, `driver` and `index` (the active step's 0-based
+#' index, possibly `undefined`). For example:
 #' `"function(element, step, opts) { console.log(step); }"`.
 #'
 #' @seealso [cicerone_inputs]
@@ -189,7 +192,8 @@ Cicerone <- R6::R6Class(
 #' @param position Deprecated, use `side` and `align`. See the side and
 #' alignment section.
 #' @param side Side the popover is positioned on: `"left"`, `"right"`,
-#' `"top"`, `"bottom"` or `"over"`.
+#' `"top"` or `"bottom"`. For a centred popover with no target
+#' element, omit `el`; driver.js renders it over the page.
 #' @param align Alignment of the popover along the chosen side:
 #' `"start"`, `"center"` or `"end"`.
 #' @param class className for this specific step's popover, in
@@ -480,10 +484,13 @@ Cicerone <- R6::R6Class(
       state$has_next
     },
 #' @details Retrieve the state of the tour: a list with `highlighted`
-#' (the highlighted element's id), `before_previous`, `has_next`,
-#' `has_previous`, `index` (0-based active step index), `is_first`,
-#' `is_last`, and `total_steps`. Updated every time a step is
-#' highlighted.
+#' (the highlighted element's id), `previous` (**deprecated**: this
+#' duplicates `highlighted`, not the previously highlighted element;
+#' kept only for cicerone < 2.0.0 compatibility, use `before_previous`
+#' instead), `before_previous` (the previously highlighted element's
+#' id), `has_next`, `has_previous`, `index` (0-based active step
+#' index), `is_first`, `is_last`, and `total_steps`. Updated every
+#' time a step is highlighted.
 #'
 #' @param session A valid Shiny session if `NULL` the function
 #' attempts to get the session with [shiny::getDefaultReactiveDomain()].

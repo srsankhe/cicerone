@@ -9,7 +9,7 @@
 #' @param position Deprecated, use `side` and `align`. See the side
 #' and alignment section.
 #' @param side Side the popover is positioned on: `"left"`, `"right"`,
-#' `"top"`, `"bottom"` or `"over"`.
+#' `"top"` or `"bottom"`.
 #' @param align Alignment of the popover along the chosen side:
 #' `"start"`, `"center"` or `"end"`.
 #' @param class className to wrap this specific popover, in addition
@@ -50,9 +50,12 @@
 #'
 #' @section Side and alignment:
 #' driver.js 1.x positions popovers with `side` (`left`, `right`, `top`,
-#' `bottom`, `over`) and `align` (`start`, `center`, `end`). The
-#' pre-2.0.0 `position` values (e.g.: `left-center`, `top-right`,
-#' `mid-center`) are still accepted and mapped automatically.
+#' `bottom`) and `align` (`start`, `center`, `end`). `highlight()`
+#' always requires `el`; for a centred popover with no target element,
+#' use `Cicerone$step()` instead and omit `el` there — driver.js
+#' renders it over the page. The pre-2.0.0 `position` values (e.g.:
+#' `left-center`, `top-right`, `mid-center`) are still accepted and
+#' mapped automatically.
 #'
 #' @name highlight
 #' @export
