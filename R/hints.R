@@ -15,6 +15,8 @@
 #' `{id}_cicerone_hint_dismissed`, and `{id}_cicerone_hint_button`.
 #' Each carries a list with the hint's `id` and `element`.
 #'
+#' @seealso [cicerone_inputs]
+#'
 #' @export
 Hints <- R6::R6Class(
   "Hints",

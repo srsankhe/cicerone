@@ -30,6 +30,9 @@ Tour hooks receive \verb{(element, step, opts)} where \code{opts} contains
 \code{"function(element, step, opts) { console.log(step); }"}.
 }
 
+\seealso{
+\link{cicerone_inputs}
+}
 \section{Methods}{
 \subsection{Public methods}{
   \itemize{
@@ -50,6 +53,8 @@ Tour hooks receive \verb{(element, step, opts)} where \code{opts} contains
     \item \href{#method-Cicerone-get_state}{\code{Cicerone$get_state()}}
     \item \href{#method-Cicerone-get_next}{\code{Cicerone$get_next()}}
     \item \href{#method-Cicerone-get_previous}{\code{Cicerone$get_previous()}}
+    \item \href{#method-Cicerone-get_started}{\code{Cicerone$get_started()}}
+    \item \href{#method-Cicerone-get_ended}{\code{Cicerone$get_ended()}}
     \item \href{#method-Cicerone-clone}{\code{Cicerone$clone()}}
   }
 }
@@ -78,6 +83,7 @@ Tour hooks receive \verb{(element, step, opts)} where \code{opts} contains
   overlay_opacity = 0.75,
   overlay_click_behavior = NULL,
   smooth_scroll = FALSE,
+  allow_scroll = TRUE,
   stage_padding = 10,
   stage_radius = NULL,
   disable_active_interaction = FALSE,
@@ -135,6 +141,8 @@ cicerone.}
 (default) closes the tour, \code{"nextStep"} moves to the next step, or a
 string of JavaScript defining a custom handler.}
       \item{\code{smooth_scroll}}{Whether to smooth scroll to the highlighted element.}
+      \item{\code{allow_scroll}}{Whether the page can be scrolled while a tour is
+active, set to \code{FALSE} to lock body scroll.}
       \item{\code{stage_padding}}{Distance between the highlighted element and the
 edge of the cutout, in pixels.}
       \item{\code{stage_radius}}{Corner radius of the cutout around the highlighted
@@ -625,6 +633,56 @@ attempts to get the session with \code{\link[shiny:getDefaultReactiveDomain]{shi
   }
   \subsection{Details}{
     Retrieve data that was fired when the user hit the "previous" button.
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-Cicerone-get_started"></a>}}
+\if{latex}{\out{\hypertarget{method-Cicerone-get_started}{}}}
+\subsection{\code{Cicerone$get_started()}}{
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{Cicerone$get_started(session = NULL)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{session}}{A valid Shiny session if \code{NULL} the function
+attempts to get the session with \code{\link[shiny:getDefaultReactiveDomain]{shiny::getDefaultReactiveDomain()}}.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Details}{
+    Retrieve data that was fired the first time a step was
+highlighted after \verb{$start()}: a list with \code{index} (0-based) and
+\code{total_steps}. Fires once per \verb{$start()}; a subsequent \verb{$move_to()}
+does not re-fire it. See \link{cicerone_inputs}.
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-Cicerone-get_ended"></a>}}
+\if{latex}{\out{\hypertarget{method-Cicerone-get_ended}{}}}
+\subsection{\code{Cicerone$get_ended()}}{
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{Cicerone$get_ended(session = NULL)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{session}}{A valid Shiny session if \code{NULL} the function
+attempts to get the session with \code{\link[shiny:getDefaultReactiveDomain]{shiny::getDefaultReactiveDomain()}}.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Details}{
+    Retrieve data that was fired when the tour ended: a list
+with \code{reason} (one of \code{"done"}, \code{"close"}, \code{"programmatic"},
+\code{"dismissed"}), \code{completed} (\code{TRUE} when \code{reason} is \code{"done"}),
+\code{index} and \code{total_steps}. See \link{cicerone_inputs}.
   }
 }
 

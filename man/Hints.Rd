@@ -23,6 +23,9 @@ of the \code{Hints} object: \verb{\{id\}_cicerone_hint_opened},
 Each carries a list with the hint's \code{id} and \code{element}.
 }
 
+\seealso{
+\link{cicerone_inputs}
+}
 \section{Methods}{
 \subsection{Public methods}{
   \itemize{

@@ -20,6 +20,8 @@
 #' `config`, `state` and `driver`. For example:
 #' `"function(element, step, opts) { console.log(step); }"`.
 #'
+#' @seealso [cicerone_inputs]
+#'
 #' @export
 Cicerone <- R6::R6Class(
   "Cicerone",
@@ -512,6 +514,34 @@ Cicerone <- R6::R6Class(
         session <- shiny::getDefaultReactiveDomain()
 
       grab <- paste0(private$id, "_cicerone_previous")
+      session$input[[grab]]
+    },
+#' @details Retrieve data that was fired the first time a step was
+#' highlighted after `$start()`: a list with `index` (0-based) and
+#' `total_steps`. Fires once per `$start()`; a subsequent `$move_to()`
+#' does not re-fire it. See [cicerone_inputs].
+#'
+#' @param session A valid Shiny session if `NULL` the function
+#' attempts to get the session with [shiny::getDefaultReactiveDomain()].
+    get_started = function(session = NULL){
+      if(is.null(session))
+        session <- shiny::getDefaultReactiveDomain()
+
+      grab <- paste0(private$id, "_cicerone_started")
+      session$input[[grab]]
+    },
+#' @details Retrieve data that was fired when the tour ended: a list
+#' with `reason` (one of `"done"`, `"close"`, `"programmatic"`,
+#' `"dismissed"`), `completed` (`TRUE` when `reason` is `"done"`),
+#' `index` and `total_steps`. See [cicerone_inputs].
+#'
+#' @param session A valid Shiny session if `NULL` the function
+#' attempts to get the session with [shiny::getDefaultReactiveDomain()].
+    get_ended = function(session = NULL){
+      if(is.null(session))
+        session <- shiny::getDefaultReactiveDomain()
+
+      grab <- paste0(private$id, "_cicerone_ended")
       session$input[[grab]]
     }
   ),
