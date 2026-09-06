@@ -22,6 +22,9 @@ import {
 // --- WP6 begin ---
 import { armAdvance, disarmAdvance } from "./advance.js";
 // --- WP6 end ---
+// --- WP9 begin ---
+import { wrapPopoverRender } from "./progress.js";
+// --- WP9 end ---
 
 // Hook option names that may arrive from R as strings of JavaScript
 const CONFIG_HOOKS = [
@@ -243,6 +246,11 @@ Shiny.addCustomMessageHandler("cicerone-init", function (opts) {
   });
 
   config.steps = steps;
+
+  // --- WP9 begin ---
+  wrapPopoverRender(id, config);
+  // --- WP9 end ---
+
   drivers[id] = Driver(config);
 });
 
