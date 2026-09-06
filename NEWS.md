@@ -88,6 +88,23 @@
     reports `"done"` as well (driver.js's `moveNext()` destroys directly
     without routing through the Done button's hooks, so cicerone tags
     the reason itself).
+- New `progress_style` argument on `Cicerone$new()`/`$step()` and
+  `initialise()`/`highlight()`: `"text"` (the default, unchanged), `"bar"`,
+  or `"dots"`. A step-level `progress_style` overrides the tour's default
+  for that one step. `"bar"`/`"dots"` force `show_progress` on regardless
+  of the `show_progress` argument, since the CSS that renders them needs
+  driver.js's own progress element in the DOM. Not wired for a standalone
+  `highlight()` call made without a preceding `initialise()`/`$init()` for
+  the same id — that ad hoc popover has no config to wrap, so it falls
+  back to plain text progress.
+- New `cicerone_theme()`: emits a `<style>` tag setting the CSS custom
+  properties `custom.css` reads for popover surface/text/accent/
+  radius/font-size/shadow/button/progress colors, scoped to `.driver-popover`
+  or to a `selector` you pass (e.g. a `popover_class`). `preset = "bootstrap"`
+  maps every property to the matching bslib/Bootstrap 5.3+ `--bs-*`
+  variable, so a themed tour follows the app's bslib theme, including dark
+  mode, automatically. With no theme applied, every popover's computed
+  style is unchanged from driver.js's own default look.
 
 # cicerone 2.0.0
 
