@@ -67,7 +67,8 @@ highlight <- function(el, id, title = NULL, description = NULL, position = NULL,
   progress_text = NULL, on_popover_render = NULL, on_next = NULL,
   on_prev = NULL, on_close = NULL, on_done = NULL,
   disable_active_interaction = NULL, advance_on_click = NULL,
-  skip_missing_element = NULL, wait_for_element = NULL, data = NULL,
+  skip_missing_element = NULL, wait_for_element = NULL,
+  advance_on = NULL, advance_when = NULL, data = NULL,
   session = NULL) {
 
   if(is.null(session))
@@ -107,6 +108,8 @@ highlight <- function(el, id, title = NULL, description = NULL, position = NULL,
     advanceOnClick = advance_on_click,
     skipMissingElement = skip_missing_element,
     waitForElement = wait_for_element,
+    advanceOn = normalize_advance_on(advance_on),
+    advanceWhen = validate_advance_when(advance_when),
     data = data
   ))
   step$id <- id

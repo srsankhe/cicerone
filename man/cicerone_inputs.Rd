@@ -33,10 +33,12 @@ overlay click, or anything else). \code{completed} is \code{TRUE} exactly when
 
 \code{type} in \verb{_event} is one of \code{"started"}, \code{"highlighted"}, \code{"next"},
 \code{"previous"}, \code{"done"}, \code{"close"}, \code{"ended"}, \code{"hint_opened"},
-\code{"hint_dismissed"}, or \code{"hint_button"}. \code{element} is the id of the
-event's associated element (the highlighted step's element for tour
-events, the hint's element for hint events), or \code{NULL}. \code{time} is an
-ISO-8601 string.
+\code{"hint_dismissed"}, \code{"hint_button"}, or \code{"advance"} (a step's
+\code{advance_on}/\code{advance_when} fired, see \link{Cicerone}'s \code{step()}).
+\code{element} is the id of the event's associated element (the
+highlighted step's element for tour events, the \code{advance_on} element
+for an \code{"advance"} event triggered by it, the hint's element for hint
+events), or \code{NULL}. \code{time} is an ISO-8601 string.
 }
 
 \section{Hint inputs}{

@@ -229,6 +229,8 @@ Shiny event and advances the tour, unless the callback returns
   advance_on_click = NULL,
   skip_missing_element = NULL,
   wait_for_element = NULL,
+  advance_on = NULL,
+  advance_when = NULL,
   data = NULL
 )}
     \if{html}{\out{</div>}}
@@ -293,6 +295,17 @@ advances the tour, for this step.}
 is not found.}
       \item{\code{wait_for_element}}{Milliseconds to wait for this step's element
 to appear before giving up.}
+      \item{\code{advance_on}}{Advance the tour when a DOM event fires on any
+element on the page, not only the highlighted one (see
+\code{advance_on_click} for that). A selector string (the event defaults
+to \code{"click"}), or \code{list(el = "...", event = "...")}.}
+      \item{\code{advance_when}}{A JavaScript predicate \verb{(step, opts) => boolean}.
+Evaluated once when the step is highlighted, then again on every DOM
+mutation and \code{input}/\code{change} event until it returns \code{true}, at which
+point the tour advances. For a server-driven alternative, use
+\code{observeEvent(input$x, tour$move_forward())}. On the last step, either
+mechanism ends the tour with \verb{_ended$reason = "dismissed"} (not
+\code{"done"}), the same way \verb{$move_forward()} does there.}
       \item{\code{data}}{A named list of arbitrary data attached to the step,
 available to JavaScript callbacks as \code{step.data}.}
     }

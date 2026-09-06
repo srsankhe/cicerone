@@ -242,6 +242,17 @@ Cicerone <- R6::R6Class(
 #' is not found.
 #' @param wait_for_element Milliseconds to wait for this step's element
 #' to appear before giving up.
+#' @param advance_on Advance the tour when a DOM event fires on any
+#' element on the page, not only the highlighted one (see
+#' `advance_on_click` for that). A selector string (the event defaults
+#' to `"click"`), or `list(el = "...", event = "...")`.
+#' @param advance_when A JavaScript predicate `(step, opts) => boolean`.
+#' Evaluated once when the step is highlighted, then again on every DOM
+#' mutation and `input`/`change` event until it returns `true`, at which
+#' point the tour advances. For a server-driven alternative, use
+#' `observeEvent(input$x, tour$move_forward())`. On the last step, either
+#' mechanism ends the tour with `_ended$reason = "dismissed"` (not
+#' `"done"`), the same way `$move_forward()` does there.
 #' @param data A named list of arbitrary data attached to the step,
 #' available to JavaScript callbacks as `step.data`.
     step = function(el = NULL, title = NULL, description = NULL, position = NULL,
@@ -255,7 +266,8 @@ Cicerone <- R6::R6Class(
       on_deselected = NULL, on_prev = NULL, on_close = NULL, on_done = NULL,
       on_popover_render = NULL,
       disable_active_interaction = NULL, advance_on_click = NULL,
-      skip_missing_element = NULL, wait_for_element = NULL, data = NULL) {
+      skip_missing_element = NULL, wait_for_element = NULL,
+      advance_on = NULL, advance_when = NULL, data = NULL) {
 
       if(!is.null(is_id))
         .Deprecated(
@@ -314,6 +326,8 @@ Cicerone <- R6::R6Class(
         advanceOnClick = advance_on_click,
         skipMissingElement = skip_missing_element,
         waitForElement = wait_for_element,
+        advanceOn = normalize_advance_on(advance_on),
+        advanceWhen = validate_advance_when(advance_when),
         data = data
       ))
 

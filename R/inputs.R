@@ -27,10 +27,12 @@
 #'
 #' `type` in `_event` is one of `"started"`, `"highlighted"`, `"next"`,
 #' `"previous"`, `"done"`, `"close"`, `"ended"`, `"hint_opened"`,
-#' `"hint_dismissed"`, or `"hint_button"`. `element` is the id of the
-#' event's associated element (the highlighted step's element for tour
-#' events, the hint's element for hint events), or `NULL`. `time` is an
-#' ISO-8601 string.
+#' `"hint_dismissed"`, `"hint_button"`, or `"advance"` (a step's
+#' `advance_on`/`advance_when` fired, see [Cicerone]'s `step()`).
+#' `element` is the id of the event's associated element (the
+#' highlighted step's element for tour events, the `advance_on` element
+#' for an `"advance"` event triggered by it, the hint's element for hint
+#' events), or `NULL`. `time` is an ISO-8601 string.
 #'
 #' @section Hint inputs:
 #' | Input | Event | Payload | Fires |

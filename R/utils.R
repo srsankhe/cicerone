@@ -213,3 +213,47 @@ build_popover <- function(
     onDoneClick = on_done_click
   ))
 }
+
+# normalise step(advance_on=)/highlight(advance_on=) to the shape the JS
+# side expects: {element, event}. Accepts a selector string (event
+# defaults to "click"), or list(el = "...", event = "...").
+normalize_advance_on <- function(x) {
+  if (is.null(x)) return(NULL)
+
+  if (is.character(x)) {
+    assertthat::assert_that(
+      assertthat::is.string(x),
+      msg = "`advance_on` must be a single selector string"
+    )
+    x <- list(el = x)
+  }
+
+  assertthat::assert_that(
+    is.list(x) && !is.null(x$el),
+    msg = "`advance_on` must be a selector string, or list(el = ..., event = ...)"
+  )
+  assertthat::assert_that(
+    assertthat::is.string(x$el),
+    msg = "`advance_on`'s `el` must be a single character string"
+  )
+
+  event <- x$event %||% "click"
+  assertthat::assert_that(
+    assertthat::is.string(event),
+    msg = "`advance_on`'s `event` must be a single character string"
+  )
+
+  list(element = prep_element(x$el), event = event)
+}
+
+# validate step(advance_when=)/highlight(advance_when=): a single string
+# of JavaScript, or NULL. Passed through unchanged -- JS evaluates it.
+validate_advance_when <- function(x) {
+  if (!is.null(x)) {
+    assertthat::assert_that(
+      assertthat::is.string(x),
+      msg = "`advance_when` must be a single character string of JavaScript"
+    )
+  }
+  x
+}

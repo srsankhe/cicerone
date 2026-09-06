@@ -43,6 +43,19 @@
 #' clicked.
 #' @param on_done A JavaScript function to run when the done button is
 #' clicked, on the last step.
+#' @param advance_on Advance the tour when a DOM event fires on any
+#' element on the page, not only the highlighted one (see
+#' `advance_on_click` for that). A selector string (the event defaults
+#' to `"click"`), or `list(el = "...", event = "...")`.
+#' @param advance_when A JavaScript predicate `(step, opts) => boolean`.
+#' Evaluated once when the step is highlighted, then again on every DOM
+#' mutation and `input`/`change` event until it returns `true`, at which
+#' point the tour advances. For a server-driven alternative, use
+#' `observeEvent(input$x, tour$move_forward())`. On the tour's last step,
+#' either mechanism ends the tour (there is no next step to move to);
+#' `{id}_cicerone_ended$reason` is `"dismissed"` rather than `"done"` for
+#' this, since it bypasses the Done button's hook resolution, the same
+#' way `$move_forward()` does on the last step.
 #' @param data A named list of arbitrary data attached to the step,
 #' available to JavaScript callbacks as `step.data`.
 #'

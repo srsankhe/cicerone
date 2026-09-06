@@ -31,6 +31,8 @@ highlight(
   advance_on_click = NULL,
   skip_missing_element = NULL,
   wait_for_element = NULL,
+  advance_on = NULL,
+  advance_when = NULL,
   data = NULL,
   session = NULL
 )
@@ -149,6 +151,21 @@ not found on the page.}
 
 \item{wait_for_element}{Milliseconds to wait for a step's element to
 appear before giving up.}
+
+\item{advance_on}{Advance the tour when a DOM event fires on any
+element on the page, not only the highlighted one (see
+\code{advance_on_click} for that). A selector string (the event defaults
+to \code{"click"}), or \code{list(el = "...", event = "...")}.}
+
+\item{advance_when}{A JavaScript predicate \verb{(step, opts) => boolean}.
+Evaluated once when the step is highlighted, then again on every DOM
+mutation and \code{input}/\code{change} event until it returns \code{true}, at which
+point the tour advances. For a server-driven alternative, use
+\code{observeEvent(input$x, tour$move_forward())}. On the tour's last step,
+either mechanism ends the tour (there is no next step to move to);
+\verb{\{id\}_cicerone_ended$reason} is \code{"dismissed"} rather than \code{"done"} for
+this, since it bypasses the Done button's hook resolution, the same
+way \verb{$move_forward()} does on the last step.}
 
 \item{data}{A named list of arbitrary data attached to the step,
 available to JavaScript callbacks as \code{step.data}.}
