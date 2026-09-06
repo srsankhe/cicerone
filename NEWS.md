@@ -83,11 +83,11 @@
   - New `_event` type `"advance"`, with `element` the triggering
     selector (`advance_on`) or the currently highlighted element
     (`advance_when`), without the leading `#`.
-  - On the last step, either mechanism ends the tour with
-    `_ended$reason = "dismissed"` rather than `"done"`, the same way
-    `$move_forward()` already does there: both call driver.js's
-    `moveNext()` directly, which does not route through the Done
-    button's hook resolution.
+  - On the last step, either mechanism completes the tour with
+    `_ended$reason = "done"`. `$move_forward()` on the last step now
+    reports `"done"` as well (driver.js's `moveNext()` destroys directly
+    without routing through the Done button's hooks, so cicerone tags
+    the reason itself).
 
 # cicerone 2.0.0
 

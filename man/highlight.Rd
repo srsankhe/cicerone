@@ -162,10 +162,8 @@ Evaluated once when the step is highlighted, then again on every DOM
 mutation and \code{input}/\code{change} event until it returns \code{true}, at which
 point the tour advances. For a server-driven alternative, use
 \code{observeEvent(input$x, tour$move_forward())}. On the tour's last step,
-either mechanism ends the tour (there is no next step to move to);
-\verb{\{id\}_cicerone_ended$reason} is \code{"dismissed"} rather than \code{"done"} for
-this, since it bypasses the Done button's hook resolution, the same
-way \verb{$move_forward()} does on the last step.}
+either mechanism completes the tour (\verb{\{id\}_cicerone_ended$reason} is
+\code{"done"}), as does \verb{$move_forward()}.}
 
 \item{data}{A named list of arbitrary data attached to the step,
 available to JavaScript callbacks as \code{step.data}.}

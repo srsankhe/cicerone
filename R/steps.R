@@ -251,8 +251,8 @@ Cicerone <- R6::R6Class(
 #' mutation and `input`/`change` event until it returns `true`, at which
 #' point the tour advances. For a server-driven alternative, use
 #' `observeEvent(input$x, tour$move_forward())`. On the last step, either
-#' mechanism ends the tour with `_ended$reason = "dismissed"` (not
-#' `"done"`), the same way `$move_forward()` does there.
+#' mechanism completes the tour (`_ended$reason = "done"`), as does
+#' `$move_forward()`.
 #' @param data A named list of arbitrary data attached to the step,
 #' available to JavaScript callbacks as `step.data`.
     step = function(el = NULL, title = NULL, description = NULL, position = NULL,

@@ -304,8 +304,8 @@ Evaluated once when the step is highlighted, then again on every DOM
 mutation and \code{input}/\code{change} event until it returns \code{true}, at which
 point the tour advances. For a server-driven alternative, use
 \code{observeEvent(input$x, tour$move_forward())}. On the last step, either
-mechanism ends the tour with \verb{_ended$reason = "dismissed"} (not
-\code{"done"}), the same way \verb{$move_forward()} does there.}
+mechanism completes the tour (\verb{_ended$reason = "done"}), as does
+\verb{$move_forward()}.}
       \item{\code{data}}{A named list of arbitrary data attached to the step,
 available to JavaScript callbacks as \code{step.data}.}
     }

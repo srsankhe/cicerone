@@ -52,10 +52,8 @@
 #' mutation and `input`/`change` event until it returns `true`, at which
 #' point the tour advances. For a server-driven alternative, use
 #' `observeEvent(input$x, tour$move_forward())`. On the tour's last step,
-#' either mechanism ends the tour (there is no next step to move to);
-#' `{id}_cicerone_ended$reason` is `"dismissed"` rather than `"done"` for
-#' this, since it bypasses the Done button's hook resolution, the same
-#' way `$move_forward()` does on the last step.
+#' either mechanism completes the tour (`{id}_cicerone_ended$reason` is
+#' `"done"`), as does `$move_forward()`.
 #' @param data A named list of arbitrary data attached to the step,
 #' available to JavaScript callbacks as `step.data`.
 #'

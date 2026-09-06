@@ -156,6 +156,8 @@ test_that("advance_when: typing alone does not advance, checking the box does", 
   # that the predicate fired and the tour reacted to it.
   app$wait_for_value(input = "e2e_adv_cicerone_ended")
 
+  # advancing off the last step completes the tour
+  expect_equal(input_value(app, "e2e_adv_cicerone_ended")$reason, "done")
   expect_true("advance:el3" %in% adv_events(app))
   expect_true(app$get_js(
     "(function(){

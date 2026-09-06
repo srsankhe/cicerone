@@ -259,6 +259,8 @@ Shiny.addCustomMessageHandler("cicerone-reset", function (opts) {
 
 Shiny.addCustomMessageHandler("cicerone-next", function (opts) {
   if (!drivers[opts.id]) return;
+  // $move_forward() on the last step completes the tour (see advance.js)
+  if (drivers[opts.id].isLastStep()) pendingReason[opts.id] = "done";
   drivers[opts.id].moveNext();
 });
 

@@ -8,7 +8,7 @@
 // first tears down both, and so a host page (or a test) can inspect what,
 // if anything, is currently armed. `window.cicerone.advanceListeners`
 // publishes this object; see the 1-line attachment in cicerone.js.
-import { drivers, getStateData, emitEvent } from "./bridge.js";
+import { drivers, getStateData, emitEvent, pendingReason } from "./bridge.js";
 import { evalFunction, stripHash } from "./util.js";
 
 export const advanceListeners = {};
@@ -58,7 +58,13 @@ const fireAdvance = (id, elementLabel) => {
     highlighted: elementLabel != null ? elementLabel : (state ? state.highlighted : null),
     total_steps: state ? state.total_steps : null,
   });
-  if (drivers[id]) drivers[id].moveNext();
+  // advancing off the last step completes the tour: moveNext() destroys
+  // directly without going through the Done button's hook resolution, so
+  // tag the reason here or onDestroyed would report "dismissed"
+  if (drivers[id]) {
+    if (drivers[id].isLastStep()) pendingReason[id] = "done";
+    drivers[id].moveNext();
+  }
 };
 
 // Arm `step.advanceOn`/`step.advanceWhen` for the step just highlighted
