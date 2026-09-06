@@ -14,7 +14,8 @@
 #' * `top-center`, `top-right`
 #' * `right-center`, `right-bottom`
 #' * `bottom-center`
-#' * `mid-center`
+#' * `mid-center` (no 1.x equivalent for a step with an element: maps to
+#'   `align = "center"` on driver.js's default side)
 #'
 #' @section JavaScript callbacks:
 #' All `on_*` arguments take a string of JavaScript defining a function.

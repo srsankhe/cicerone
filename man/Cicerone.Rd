@@ -20,7 +20,8 @@ the equivalent \code{side}/\code{align} pair:
 \item \code{top-center}, \code{top-right}
 \item \code{right-center}, \code{right-bottom}
 \item \code{bottom-center}
-\item \code{mid-center}
+\item \code{mid-center} (no 1.x equivalent for a step with an element: maps to
+\code{align = "center"} on driver.js's default side)
 }
 }
 

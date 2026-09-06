@@ -122,7 +122,9 @@ Hints can be controlled from the server with `open()`, `close()`,
 ## Shiny inputs
 
 The bridge sets these Shiny inputs. `{id}` is the `id` of the
-`Cicerone`/`Hints` object; all of them fire with `priority: "event"`.
+`Cicerone`/`Hints` object. All fire with `priority: "event"` except
+`{id}_cicerone_state`, which is a plain input (it only changes when the
+state changes).
 
 | Input | Payload | Fired when |
 |---|---|---|

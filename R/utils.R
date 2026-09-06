@@ -41,8 +41,10 @@ normalize_buttons <- function(x) {
 position_to_side_align <- function(position) {
   if (is.null(position)) return(list(side = NULL, align = NULL))
 
+  # driver.js 1.x has no "over" side for a step with an element; centre the
+  # popover on driver.js's default side instead
   if (position == "mid-center")
-    return(list(side = "over", align = "center"))
+    return(list(side = NULL, align = "center"))
 
   parts <- strsplit(position, "-")[[1]]
 
