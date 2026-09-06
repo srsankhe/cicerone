@@ -4,6 +4,42 @@
   new shinytest2 end-to-end test harness (`CICERONE_E2E=true`). No
   user-facing change.
 
+- New Shiny inputs for tour lifecycle and reason detection, fixing
+  upstream JohnCoene/cicerone#59, #62 and #69 (upstream is archived; these
+  are fixed here, in the fork, only):
+  - `{id}_cicerone_started`: fires once per `$start()`, with the 0-based
+    `index` and `total_steps` of the first highlighted step. A later
+    `$move_to()` does not re-fire it.
+  - `{id}_cicerone_ended`: fires whenever a tour is destroyed, with
+    `reason` (`"done"`, `"close"`, `"programmatic"` or `"dismissed"`) and
+    `completed` (`TRUE` exactly when `reason` is `"done"`), plus `index`
+    and `total_steps`. `reason` distinguishes the Done button, the close
+    button, a server-side `$reset()`/`$destroy()`, and everything else
+    (Escape, an overlay click, or any other dismissal).
+  - `{id}_cicerone_event`: a unified event stream, one input for every
+    lifecycle event (`started`, `highlighted`, `next`, `previous`,
+    `done`, `close`, `ended`, `hint_opened`, `hint_dismissed`,
+    `hint_button`), each with `type`, `index`, `element`, `total_steps`
+    and an ISO-8601 `time`. Fires in addition to the specific input above.
+  - `{id}_cicerone_reset` and `cicerone_reset` are unchanged: same
+    payload (`TRUE`), same firing conditions. Prefer `_ended` for the
+    reason a tour stopped.
+  - New `$get_started()`/`$get_ended()` methods on `Cicerone`, reading the
+    two new inputs. See `?cicerone_inputs` for the full table of every
+    Shiny input the package sets.
+  - A tour's Done button now works even when only `on_next` (not
+    `on_done`) is set on the last step, matching the pre-2.1.0
+    `onNextClick` fallback: driver.js 1.x stops calling `onNextClick` on
+    the last step once `onDoneClick` is defined anywhere, which cicerone
+    now always does internally to detect `reason = "done"`.
+
+- Hints: a hint's `on_button_click` no longer replaces the default
+  dismiss-on-click behaviour. Previously, defining `on_button_click` (or
+  cicerone's own internal wrapping) meant the hint's popover button
+  stopped auto-dismissing the hint, mirroring the `onCloseClick`
+  replacement behaviour in driver.js tours; cicerone now calls
+  `dismiss()` after the hook runs, unless the hook returns `false`.
+
 # cicerone 2.0.0
 
 Major upgrade: the bundled driver.js was updated from 0.9.8 to 1.8.0, a
