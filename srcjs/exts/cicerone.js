@@ -27,3 +27,6 @@ window.cicerone = {
 
 import "./tour.js";
 import "./hints.js";
+// --- WP7 begin: standalone wait_for_element() handler ---
+import "./anchor.js";
+// --- WP7 end ---
