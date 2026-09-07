@@ -429,9 +429,11 @@ predicate that reads live DOM/input state (e.g.
 different set of steps on different runs. A predicate that throws is
 treated as \code{true} (the step is shown) and logged with \code{console.warn}.
 If \verb{$start(step = )} requests a step that \code{show_if} removes, the tour
-starts at the next visible step after it instead; if none of the
-steps from that point on are visible, the tour does not start and
-\verb{\{id\}_cicerone_event} fires once with \code{type = "no_visible_steps"} (see
+starts at the next visible step after it instead; if none follows (the
+requested step and everything after it are hidden), the tour starts
+at the LAST visible step instead. \verb{\{id\}_cicerone_event} fires with
+\code{type = "no_visible_steps"} -- and the tour does not start at all --
+only when every step's \code{show_if} returns \code{false} (see
 \code{?cicerone_inputs}).}
       \item{\code{data}}{A named list of arbitrary data attached to the step,
 available to JavaScript callbacks as \code{step.data}.}

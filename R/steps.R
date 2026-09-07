@@ -402,9 +402,11 @@ Cicerone <- R6::R6Class(
 #' different set of steps on different runs. A predicate that throws is
 #' treated as `true` (the step is shown) and logged with `console.warn`.
 #' If `$start(step = )` requests a step that `show_if` removes, the tour
-#' starts at the next visible step after it instead; if none of the
-#' steps from that point on are visible, the tour does not start and
-#' `{id}_cicerone_event` fires once with `type = "no_visible_steps"` (see
+#' starts at the next visible step after it instead; if none follows (the
+#' requested step and everything after it are hidden), the tour starts
+#' at the LAST visible step instead. `{id}_cicerone_event` fires with
+#' `type = "no_visible_steps"` -- and the tour does not start at all --
+#' only when every step's `show_if` returns `false` (see
 #' `?cicerone_inputs`).
 #' @param data A named list of arbitrary data attached to the step,
 #' available to JavaScript callbacks as `step.data`.

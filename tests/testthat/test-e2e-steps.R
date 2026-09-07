@@ -74,6 +74,30 @@ test_that("show_if is re-evaluated fresh on every start", {
   expect_equal(input_value(app, "e2e_steps_cicerone_state")$total_steps, 3)
 })
 
+test_that("requesting a hidden step with nothing visible after it falls back to the last visible step", {
+  skip_e2e()
+  app <- e2e_app()
+  on.exit(app$stop(), add = TRUE)
+
+  # guide_showif_tail: el1, el2 visible; el3 (the requested, last, index
+  # 2) is always hidden -- Copilot review item C: this must fall back to
+  # the LAST VISIBLE step (el2, index 1), not fire no_visible_steps
+  # (which only fires when the filtered list is empty).
+  app$click(input = "btn_start_showif_tail")
+  app$wait_for_value(input = "e2e_showif_tail_cicerone_state")
+
+  state <- input_value(app, "e2e_showif_tail_cicerone_state")
+  expect_equal(state$total_steps, 2)
+  expect_equal(state$index, 1)
+  expect_equal(state$highlighted, "el2")
+
+  # the tour actually drove (proven by the _state wait above succeeding
+  # at all): no_visible_steps only fires -- without ever driving -- when
+  # the filtered list is empty, which it is not here (2 of 3 steps show)
+  started <- input_value(app, "e2e_showif_tail_cicerone_started")
+  expect_equal(started$index, 1)
+})
+
 test_that("set_config(overlay_opacity = ) mid-tour updates the live overlay and the tour keeps working", {
   skip_e2e()
   app <- e2e_app()
