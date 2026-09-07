@@ -31,6 +31,9 @@ export let active = {};
 // destroys every other active tour) and "programmatic" (tour.js,
 // cicerone-destroy-all, in addition to the existing cicerone-reset use).
 // --- WP7 end ---
+// Copilot review item 3: also set to "restarted" (tour.js, cicerone-start,
+// when `$start()` is called again on this SAME tour while already active
+// -- destroyed and re-driven fresh rather than left running/orphaned).
 export let pendingReason = {};
 
 // --- async-safety begin: per-id navigation generation counter ---

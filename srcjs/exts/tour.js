@@ -171,6 +171,29 @@ Shiny.addCustomMessageHandler("cicerone-start", function (opts) {
   // `navGen` note in bridge.js)
   bumpNavGen(id);
   // --- async-safety end ---
+
+  // Copilot review item 3: restart an already-active tour cleanly.
+  // driver.js's own setSteps()/drive() do not tear down an already-active
+  // instance -- setSteps() calls `t.resetState()` (see `re()`/`setSteps()`
+  // in driver.js.mjs), which wipes `isInitialized`, `activeIndex`, the
+  // live `popover`/`__overlaySvg` state, WITHOUT calling `onDestroyed` or
+  // removing the popover/overlay DOM nodes. A second, unguarded
+  // `$start()` on the same still-active id would therefore: orphan the
+  // old `.driver-popover`/`.driver-overlay` elements (drive()'s own
+  // `u()`/`K()` create fresh ones instead of replacing them, since their
+  // state references were just wiped, not the elements); leave cicerone's
+  // own `active[id]` bookkeeping flag TRUE, so `_started` would not
+  // re-fire; and re-register driver.js's global keyup/keydown/resize/
+  // scroll/click listeners a second time (`u()`'s `ee(t)`, since
+  // `isInitialized` reads as falsy again). Destroying the live instance
+  // first runs its `onDestroyed` teardown properly -- removing the old
+  // DOM nodes, detaching the old listeners, clearing `active[id]` -- and
+  // emits `_ended` with reason "restarted" before the fresh drive() below.
+  if (drivers[id].isActive()) {
+    pendingReason[id] = "restarted";
+    drivers[id].destroy();
+  }
+
   const driver = drivers[id];
   let config = driver.getConfig();
 
