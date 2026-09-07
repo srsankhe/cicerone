@@ -168,6 +168,18 @@ export const prepareSteps = (id, steps, config) => {
       if (step.popover.onCloseClick) {
         step.popover.onCloseClick = wrapClose(id, step.popover.onCloseClick);
       }
+      // Copilot review: a step-level onDoneClick was stashed into
+      // _cicOrigDone (for prepareConfig's fallback chain below) but left
+      // in place raw/unwrapped. driver.js's own resolver (`L()` in
+      // driver.js.mjs) picks `step.popover.onDoneClick||config.onDoneClick`
+      // on the last step -- popover-level wins whenever the step defines
+      // one, the same precedence onNextClick/onCloseClick already have
+      // here -- so an unwrapped step-level onDoneClick bypassed
+      // prepareConfig's wrapDone() entirely: no `_next`/`event:"done"`, no
+      // destroy() unless the user hook did it itself. Wrap it the same way.
+      if (step.popover.onDoneClick) {
+        step.popover.onDoneClick = wrapDone(id, () => step.popover._cicOrigDone);
+      }
     }
   });
 

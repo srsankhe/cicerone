@@ -7,6 +7,7 @@ import {
   getStateData,
   wrapNext,
   wrapPrevious,
+  wrapDone,
   emitEvent,
   emitInput,
   // --- async-safety begin ---
@@ -469,6 +470,15 @@ Shiny.addCustomMessageHandler("cicerone-highlight-man", function (opts) {
         id,
         evalFunction(opts.popover.onPrevClick),
       );
+    }
+    // Copilot review item 2 (mirrors the prepareSteps() fix in steps.js):
+    // this ad hoc popover's own onDoneClick was left raw/unwrapped, same
+    // gap as a real tour step's. Capture the original BEFORE wrapping --
+    // `evalHooks(opts.popover, POPOVER_HOOKS)` above already turned a
+    // string into a function, so no further evalFunction() is needed.
+    if (opts.popover.onDoneClick) {
+      const origDone = opts.popover.onDoneClick;
+      opts.popover.onDoneClick = wrapDone(id, () => origDone);
     }
   }
   evalHooks(opts, STEP_HOOKS);
