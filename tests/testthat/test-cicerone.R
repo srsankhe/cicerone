@@ -508,6 +508,23 @@ test_that("$set_config() falls back to the default reactive domain", {
   expect_equal(s$msgs[[1]]$type, "cicerone-set-config")
 })
 
+test_that("$set_config(progress_style = 'text') sends progressStyle explicitly", {
+  # build_config() otherwise omits `progress_style = \"text\"` entirely
+  # (it is the default, never sent by $new()), which would leave a live
+  # bar/dots tour's driver.js config untouched by $set_config() -- see
+  # `force_progress_style` in build_config()/R/utils.R.
+  s <- make_session()
+  g <- Cicerone$new(id = "wp9_set_config_text", progress_style = "bar")$
+    step("el1", title = "x")
+  g$init(session = s)
+
+  g$set_config(progress_style = "text", session = s)
+
+  msg <- s$msgs[[2]]
+  expect_equal(msg$type, "cicerone-set-config")
+  expect_equal(msg$message$globals$progressStyle, "text")
+})
+
 test_that("show_if lands as showIf", {
   g <- Cicerone$new()$step(
     "el1", title = "x",

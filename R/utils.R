@@ -166,8 +166,14 @@ build_config <- function(
   on_done_click = NULL,
   # --- WP7 begin: exclusive / wait_for_visible ---
   exclusive = NULL,
-  wait_for_visible = NULL
+  wait_for_visible = NULL,
   # --- WP7 end ---
+  # `$set_config()` needs an explicit `progress_style = "text"` to
+  # actually reach JS (to switch a live bar/dots tour back to plain
+  # text); `Cicerone$new()`/`initialise()` leave this FALSE so a tour
+  # that never touches `progress_style` keeps sending a byte-identical
+  # payload to pre-2.1.0 cicerone (see the `progressStyle` line below).
+  force_progress_style = FALSE
 ) {
   drop_nulls(list(
     animate = animate,
@@ -192,8 +198,10 @@ build_config <- function(
     progressText = progress_text,
     # "text" is today's behaviour and is never sent, so a tour that never
     # touches `progress_style` gets a byte-identical config payload to
-    # pre-2.1.0 cicerone
-    progressStyle = if (!identical(progress_style, "text")) progress_style,
+    # pre-2.1.0 cicerone -- unless `force_progress_style` says this call
+    # is an explicit override (`$set_config(progress_style = "text")`)
+    # that must reach JS to actually clear a live bar/dots tour
+    progressStyle = if (force_progress_style || !identical(progress_style, "text")) progress_style,
     nextBtnText = next_btn_text,
     prevBtnText = prev_btn_text,
     doneBtnText = done_btn_text,

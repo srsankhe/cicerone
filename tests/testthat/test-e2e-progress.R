@@ -44,6 +44,36 @@ test_that("progress_style = 'bar' adds the class and sets current/total, updated
   expect_equal(progress_var(app, "--cicerone-progress-total"), "3")
 })
 
+test_that("set_config(progress_style = 'text') clears the bar class on the next render", {
+  skip_e2e()
+  app <- e2e_app()
+  on.exit(app$stop(), add = TRUE)
+
+  app$click(input = "btn_start_bar")
+  app$wait_for_value(input = "e2e_bar_cicerone_state")
+  state0 <- input_value(app, "e2e_bar_cicerone_state")
+
+  expect_true(app$get_js(
+    "document.querySelector('.driver-popover').classList.contains('cicerone-progress-bar')"
+  ))
+
+  # build_config() otherwise omits an explicit "text" (it is the
+  # default, never sent by $new()); set_config()'s force_progress_style
+  # makes sure this one reaches JS -- see R/utils.R. setConfig() itself
+  # only touches driver.js's config store, not the already-rendered
+  # popover element (see the design note in tour.js), so the class is
+  # only actually cleared at the NEXT render -- Next below.
+  app$click(input = "btn_bar_set_config_text")
+  app$wait_for_idle()
+
+  app$click(selector = ".driver-popover-next-btn")
+  app$wait_for_value(input = "e2e_bar_cicerone_state", ignore = list(state0))
+
+  expect_false(app$get_js(
+    "document.querySelector('.driver-popover').classList.contains('cicerone-progress-bar')"
+  ))
+})
+
 test_that("progress_style = 'dots' adds the class and sets current/total", {
   skip_e2e()
   app <- e2e_app()

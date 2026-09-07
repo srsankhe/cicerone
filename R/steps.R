@@ -994,7 +994,11 @@ Cicerone <- R6::R6Class(
         on_close_click = on_close_click,
         on_done_click = on_done_click,
         exclusive = exclusive,
-        wait_for_visible = wait_for_visible
+        wait_for_visible = wait_for_visible,
+        # an explicit `progress_style = "text"` here means "switch this
+        # live tour back to plain text", which must reach JS even though
+        # `Cicerone$new()`'s own default omits it (see build_config())
+        force_progress_style = TRUE
       )
 
       session$sendCustomMessage(
