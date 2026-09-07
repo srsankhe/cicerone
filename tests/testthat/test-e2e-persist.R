@@ -53,6 +53,12 @@ test_that("completing persist_cookie writes a completed record; a reload shows i
 
   # proves the synchronous server read: tour_state(session, "persist_cookie")
   # is rendered once, at session start, from session$request$HTTP_COOKIE
+  # the output renders after the reload's new session connects; do not read
+  # it before it has text (CI runners are slow enough to race this)
+  app$wait_for_js(
+    "(function(){ var el = document.querySelector('#out_persist_cookie_state_at_start'); return !!el && el.textContent.trim().length > 0; })()",
+    timeout = 10000
+  )
   server_state <- app$get_text("#out_persist_cookie_state_at_start")
   expect_match(server_state, "completed")
 })
