@@ -14,7 +14,7 @@ test_that("starting the tour fires _started once, and move_to() does not re-fire
 
   started <- input_value(app, "e2e_cicerone_started")
   expect_equal(started$index, 0)
-  expect_equal(started$total_steps, 3)
+  expect_equal(started$total_steps, 4)
 
   app$click(input = "btn_move_to_2")
   app$wait_for_value(input = "e2e_cicerone_state")
@@ -44,6 +44,13 @@ test_that("clicking Done on the last step ends the tour with reason done", {
   state2 <- input_value(app, "e2e_cicerone_state")
   expect_equal(state2$index, 2)
 
+  # step 4 (index 3), the module element -- see test-e2e-baseline.R
+  app$click(selector = ".driver-popover-next-btn")
+  app$wait_for_value(input = "e2e_cicerone_state", ignore = list(state2))
+  state3 <- input_value(app, "e2e_cicerone_state")
+  expect_equal(state3$index, 3)
+  expect_equal(state3$highlighted, "m-inner")
+
   # last step: the same button now reads "Done"
   app$click(selector = ".driver-popover-next-btn")
   app$wait_for_value(input = "e2e_cicerone_ended")
@@ -51,8 +58,8 @@ test_that("clicking Done on the last step ends the tour with reason done", {
   ended <- input_value(app, "e2e_cicerone_ended")
   expect_equal(ended$reason, "done")
   expect_true(ended$completed)
-  expect_equal(ended$index, 2)
-  expect_equal(ended$total_steps, 3)
+  expect_equal(ended$index, 3)
+  expect_equal(ended$total_steps, 4)
   expect_false(is.null(input_value(app, "e2e_cicerone_next")))
 })
 
@@ -130,7 +137,7 @@ test_that("clicking the overlay ends the tour with reason dismissed", {
   expect_equal(ended$reason, "dismissed")
 })
 
-test_that("the _event stream for a full run is started, highlighted, next, highlighted, next, highlighted, done, ended", {
+test_that("the _event stream for a full run is started, highlighted, next, highlighted, next, highlighted, next, highlighted, done, ended", {
   skip_e2e()
   app <- e2e_app()
   on.exit(app$stop(), add = TRUE)
@@ -145,6 +152,11 @@ test_that("the _event stream for a full run is started, highlighted, next, highl
 
   app$click(selector = ".driver-popover-next-btn")
   app$wait_for_value(input = "e2e_cicerone_state", ignore = list(state1))
+  state2 <- input_value(app, "e2e_cicerone_state")
+
+  # step 4 (index 3), the module element
+  app$click(selector = ".driver-popover-next-btn")
+  app$wait_for_value(input = "e2e_cicerone_state", ignore = list(state2))
 
   app$click(selector = ".driver-popover-next-btn")
   app$wait_for_value(input = "e2e_cicerone_ended")
@@ -155,7 +167,7 @@ test_that("the _event stream for a full run is started, highlighted, next, highl
     strsplit(log, ",")[[1]],
     c(
       "started", "highlighted", "next", "highlighted", "next",
-      "highlighted", "done", "ended"
+      "highlighted", "next", "highlighted", "done", "ended"
     )
   )
 })
