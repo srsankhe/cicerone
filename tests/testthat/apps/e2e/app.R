@@ -42,6 +42,11 @@ guide <- Cicerone$
     description = "Element on the second tab.",
     tab = "Second",
     tab_id = "tabs"
+  )$
+  step(
+    el = "m-inner",
+    title = "Step 4",
+    description = "Element inside a Shiny module."
   )
 
 hints <- Hints$
@@ -83,6 +88,16 @@ guide_close_destroy <- Cicerone$
     on_close_click = "function(el, step, opts){ opts.driver.destroy(); }"
   )$
   step(el = "el1", title = "Close-destroy step")
+
+# Copilot review item B: a step-level `on_highlighted` override must not
+# skip the config-level highlight bookkeeping (`_state`, `_started`, the
+# `started`/`highlighted` events) -- only re-arm `advance_on`/`advance_when`.
+guide_step_highlighted <- Cicerone$
+  new(id = "e2e_step_highlighted")$
+  step(
+    el = "el1", title = "Step-level on_highlighted",
+    on_highlighted = "function(){}"
+  )
 
 # WP1: a hint whose `on_button_click` does nothing (no explicit dismiss)
 # must still auto-dismiss, matching driver.js's default click behaviour.
@@ -132,6 +147,17 @@ guide_dots <- Cicerone$
 guide_themed <- Cicerone$
   new(id = "e2e_themed", popover_class = "e2e-themed")$
   step(el = "el1", title = "Themed", description = "Accent should be red.")
+
+# WP9/Copilot review item F: a standalone highlight() call (no preceding
+# initialise()/$init() for this id) with progress_style = "bar" -- the
+# ad hoc driver.js instance highlight() creates on first use must still
+# render the bar (see the wrapPopoverRender() call in tour.js's
+# cicerone-highlight-man handler).
+adhoc_highlight <- function() {
+  highlight(
+    "el1", "e2e_adhoc", title = "Ad hoc", progress_style = "bar"
+  )
+}
 # --- WP7 begin: exclusive / destroy_all / anchor fixtures ---
 
 # A second, independent tour: exclusive start of this one (default) must
@@ -154,9 +180,10 @@ guide_chain <- Cicerone$
   step(el = "el1", title = "Chain step 1")$
   step(el = "chain_trigger", title = "Chain step 2 (click me)")
 
-# `wait_for_visible` targeting #late_visible (shown 1s after page load, see
-# the UI fixture below): long enough to see it appear, and short enough to
-# time out while it is still hidden.
+# `wait_for_visible` targeting #late_visible (hidden until
+# #btn_reveal_late_visible is clicked, then shown 1s later -- see the UI
+# fixture below): long enough to see it appear, and short enough to time
+# out while it is still hidden.
 guide_anchor_ok <- Cicerone$
   new(id = "e2e_anchor_ok")$
   step(
@@ -169,10 +196,25 @@ guide_anchor_timeout <- Cicerone$
   new(id = "e2e_anchor_timeout")$
   step(
     el = "late_visible", title = "Anchor timeout",
-    description = "wait_for_visible shorter than the 1s hide.",
+    description = "wait_for_visible shorter than the 1s reveal.",
     wait_for_visible = 300
   )
 # --- WP7 end ---
+# --- async-safety begin: stale wait_for_visible completion fixtures ---
+# A 2-step tour whose SECOND step targets #late_visible with a long
+# enough `wait_for_visible` to still be pending when the tour is reset
+# and immediately restarted mid-wait (see test-e2e-anchor.R's async
+# safety tests): step 1 (el1) is always visible, so `$start()` itself
+# never gates on anything -- only the Next-click gate (bridge.js's
+# gateMove(), not cicerone-start's own wait) is exercised here.
+guide_anchor_race <- Cicerone$
+  new(id = "e2e_anchor_race")$
+  step(el = "el1", title = "Race 1")$
+  step(
+    el = "late_visible", title = "Race 2",
+    wait_for_visible = 2000
+  )
+# --- async-safety end ---
 # --- WP4 begin: mutable tours / show_if fixtures ---
 
 # `$set_steps()`/`$clear_steps()`/`$set_config()` and `show_if`. Step 2's
@@ -187,6 +229,17 @@ guide_steps <- Cicerone$
     show_if = "(step, opts) => document.querySelector('#show_step2').checked"
   )$
   step(el = "el3", title = "Steps 3", description = "Third element.")
+
+# Copilot review item C: `$start(step = )` requesting a step that
+# `show_if` removes, with nothing visible after it either -- the
+# requested (last, index 2) step is always hidden, so the tour must fall
+# back to the LAST VISIBLE step (index 1, "Tail 2"), not fire
+# `no_visible_steps` (that only fires when the filtered list is empty).
+guide_showif_tail <- Cicerone$
+  new(id = "e2e_showif_tail")$
+  step(el = "el1", title = "Tail 1")$
+  step(el = "el2", title = "Tail 2")$
+  step(el = "el3", title = "Tail 3 (always hidden)", show_if = "() => false")
 # --- WP4 end ---
 # Note: the persistence fixtures (persist_cookie, persist_cookie_v2,
 # persist_srv) are NOT defined here at script scope, unlike every tour
@@ -213,14 +266,19 @@ ui <- fluidPage(
   actionButton("btn_start", "Start tour"),
   actionButton("btn_reset", "Reset tour"),
   actionButton("btn_move_to_2", "Move to step 2"),
+  actionButton("btn_move_forward", "Move forward ($move_forward())"),
   actionButton("btn_show_hints", "Show hints"),
   actionButton("btn_start_close_false", "Start close-false tour"),
   actionButton("btn_start_parity", "Start parity tour"),
   actionButton("btn_start_close_destroy", "Start close-destroy tour"),
+  actionButton("btn_start_step_highlighted", "Start step-highlighted-override tour"),
   actionButton("btn_show_hints_button", "Show button hint"),
   actionButton("btn_start_bar", "Start bar tour"),
+  actionButton("btn_bar_set_config_text", "Set bar tour progress_style = text"),
   actionButton("btn_start_dots", "Start dots tour"),
   actionButton("btn_start_themed", "Start themed tour"),
+  actionButton("btn_highlight_adhoc", "Highlight ad hoc (bar progress)"),
+  actionButton("btn_forget_no_persist", "Forget tour with no persist"),
   verbatimTextOutput("out_state"),
   verbatimTextOutput("out_next"),
   verbatimTextOutput("out_previous"),
@@ -236,12 +294,23 @@ ui <- fluidPage(
   cicerone_theme(accent = "#ff0000", selector = ".e2e-themed"),
 
   # --- WP7 begin: exclusive / destroy_all / anchor fixtures ---
+  # Copilot review item G: #late_visible used to reveal itself 1s after
+  # PAGE LOAD unconditionally, which the anchor_ok/anchor_timeout tests
+  # relied on staying hidden long enough after the *test*, not the page,
+  # started -- flaky under a slow page load/click round trip. It now
+  # stays hidden until #btn_reveal_late_visible is clicked, and reveals
+  # itself 1s after THAT click instead, so every test controls its own
+  # timing baseline.
   tags$div(id = "late_visible", style = "display:none;", "Late visible element"),
+  actionButton("btn_reveal_late_visible", "Reveal #late_visible after 1s"),
   tags$script(HTML(
-    "setTimeout(function(){
+    "document.addEventListener('click', function(e){
+       if (!e.target || e.target.id !== 'btn_reveal_late_visible') return;
        var el = document.getElementById('late_visible');
-       if (el) el.style.display = 'block';
-     }, 1000);"
+       if (!el) return;
+       el.style.display = 'none';
+       setTimeout(function(){ el.style.display = 'block'; }, 1000);
+     });"
   )),
   actionButton("chain_trigger", "Chain trigger (WP7)"),
   actionButton("btn_start_b", "Start tour B"),
@@ -250,11 +319,16 @@ ui <- fluidPage(
   actionButton("btn_destroy_all", "Destroy all tours"),
   actionButton("btn_insert_late", "Insert #late after 1s"),
   actionButton("btn_start_anchor_ok", "Start anchor-ok tour"),
+  actionButton("btn_reset_anchor_ok", "Reset anchor-ok tour"),
   actionButton("btn_start_anchor_timeout", "Start anchor-timeout tour"),
   actionButton("btn_wait_late", "wait_for_element(#late)"),
   actionButton("btn_wait_never", "wait_for_element(#never)"),
   actionButton("btn_wait_in_tab2", "wait_for_element(#in_tab2)"),
   # --- WP7 end ---
+  # --- async-safety begin: stale wait_for_visible completion fixtures ---
+  actionButton("btn_start_anchor_race", "Start anchor-race tour"),
+  actionButton("btn_reset_anchor_race", "Reset anchor-race tour"),
+  # --- async-safety end ---
 
   # --- WP4 begin: mutable tours / show_if fixtures ---
   checkboxInput("show_step2", "Show step 2", value = FALSE),
@@ -262,6 +336,7 @@ ui <- fluidPage(
   actionButton("btn_reset_steps", "Reset steps tour"),
   actionButton("btn_rebuild_steps", "Rebuild to one step"),
   actionButton("btn_set_overlay_opacity", "Set overlay opacity 0.1"),
+  actionButton("btn_start_showif_tail", "Start show_if-tail tour (requests hidden last step)"),
   # --- WP4 end ---
   # --- WP5 begin: persistence fixtures ---
   actionButton("btn_start_persist_cookie", "Start persist_cookie tour"),
@@ -292,6 +367,7 @@ server <- function(input, output, session) {
   guide_close_false$init()
   guide_parity$init()
   guide_close_destroy$init()
+  guide_step_highlighted$init()
   hints_button$init()
   guide_adv$init()
   guide_bar$init()
@@ -304,8 +380,12 @@ server <- function(input, output, session) {
   guide_anchor_ok$init()
   guide_anchor_timeout$init()
   # --- WP7 end ---
+  # --- async-safety begin ---
+  guide_anchor_race$init()
+  # --- async-safety end ---
   # --- WP4 begin: mutable tours / show_if init ---
   guide_steps$init()
+  guide_showif_tail$init()
   # --- WP4 end ---
   # --- WP5 begin: persistence init ---
   # Built here, fresh per session, not at script scope like every other
@@ -365,23 +445,35 @@ server <- function(input, output, session) {
   observeEvent(input$btn_start, guide$start())
   observeEvent(input$btn_reset, guide$reset())
   observeEvent(input$btn_move_to_2, guide$move_to(2))
+  observeEvent(input$btn_move_forward, guide$move_forward())
   observeEvent(input$btn_show_hints, hints$show())
   observeEvent(input$btn_start_close_false, guide_close_false$start())
   observeEvent(input$btn_start_parity, guide_parity$start())
   observeEvent(input$btn_start_close_destroy, guide_close_destroy$start())
+  observeEvent(input$btn_start_step_highlighted, guide_step_highlighted$start())
   observeEvent(input$btn_show_hints_button, hints_button$show())
   observeEvent(input$btn_start_adv, guide_adv$start())
   observeEvent(input$btn_reset_adv, guide_adv$reset())
   observeEvent(input$btn_start_bar, guide_bar$start())
+  observeEvent(input$btn_bar_set_config_text, {
+    guide_bar$set_config(progress_style = "text")
+  })
   observeEvent(input$btn_start_dots, guide_dots$start())
   observeEvent(input$btn_start_themed, guide_themed$start())
+  observeEvent(input$btn_highlight_adhoc, adhoc_highlight())
+  observeEvent(input$btn_forget_no_persist, guide$forget())
   # --- WP7 begin: exclusive / destroy_all / anchor observers ---
   observeEvent(input$btn_start_b, guide_b$start())
   observeEvent(input$btn_start_nonexcl, guide_nonexcl$start())
   observeEvent(input$btn_start_chain, guide_chain$start())
   observeEvent(input$btn_destroy_all, destroy_all())
   observeEvent(input$btn_start_anchor_ok, guide_anchor_ok$start())
+  observeEvent(input$btn_reset_anchor_ok, guide_anchor_ok$reset())
   observeEvent(input$btn_start_anchor_timeout, guide_anchor_timeout$start())
+  # --- async-safety begin ---
+  observeEvent(input$btn_start_anchor_race, guide_anchor_race$start())
+  observeEvent(input$btn_reset_anchor_race, guide_anchor_race$reset())
+  # --- async-safety end ---
 
   # NAS-shape reproduction: clicking the element e2e_chain's last step
   # highlights (#chain_trigger) starts tour B, modelling WP6's not-yet-available
@@ -420,6 +512,7 @@ server <- function(input, output, session) {
   observeEvent(input$btn_set_overlay_opacity, {
     guide_steps$set_config(overlay_opacity = 0.1)
   })
+  observeEvent(input$btn_start_showif_tail, guide_showif_tail$start(step = 3))
   # --- WP4 end ---
 
   # --- WP5 begin: persistence observers ---
