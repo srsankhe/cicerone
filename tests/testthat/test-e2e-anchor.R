@@ -52,6 +52,11 @@ test_that("wait_for_visible waits for a hidden step element to appear before hig
   app <- e2e_app()
   on.exit(app$stop(), add = TRUE)
 
+  # Copilot review item G: #late_visible no longer reveals itself off a
+  # page-load timer (flaky under a slow load/click round trip) -- this
+  # button (re)hides it, then reveals it 1s later, so the test controls
+  # its own timing baseline.
+  app$click(input = "btn_reveal_late_visible")
   app$click(input = "btn_start_anchor_ok")
   app$wait_for_value(input = "e2e_anchor_ok_cicerone_state", timeout = 5000)
 
@@ -88,6 +93,12 @@ test_that("wait_for_visible timing out emits anchor_timeout and still moves", {
   app <- e2e_app()
   on.exit(app$stop(), add = TRUE)
 
+  # #late_visible stays hidden the whole time here: the timeout (300ms)
+  # is well short of the 1s reveal, so this test does not even need to
+  # click #btn_reveal_late_visible -- but click it anyway, immediately
+  # before starting, so this test does not depend on #late_visible's
+  # state left over from an earlier test in the same app instance.
+  app$click(input = "btn_reveal_late_visible")
   app$click(input = "btn_start_anchor_timeout")
   app$wait_for_value(input = "e2e_anchor_timeout_cicerone_state", timeout = 5000)
 
@@ -97,4 +108,74 @@ test_that("wait_for_visible timing out emits anchor_timeout and still moves", {
   app$wait_for_idle()
   log <- strsplit(app$get_value(export = "anchor_timeout_event_log"), ",")[[1]]
   expect_true("anchor_timeout" %in% log)
+})
+
+# --- async-safety: stale wait_for_visible completions (Copilot review item A) ---
+
+test_that("a stale wait_for_visible completion after $reset() does not resurrect the tour", {
+  skip_e2e()
+  app <- e2e_app()
+  on.exit(app$stop(), add = TRUE)
+
+  # #late_visible stays hidden for 1s after this click; the anchor-ok
+  # tour's wait_for_visible = 3000 is scheduled by btn_start_anchor_ok
+  # below, before #late_visible becomes visible.
+  app$click(input = "btn_reveal_late_visible")
+  app$click(input = "btn_start_anchor_ok")
+  Sys.sleep(0.3)
+  app$click(input = "btn_reset_anchor_ok")
+
+  # past the 1s reveal (so the original, now-stale wait_for_visible poll
+  # has had every chance to resolve with visible = TRUE) plus a margin
+  Sys.sleep(1.5)
+  app$wait_for_idle()
+
+  expect_false(app$get_js("!!document.querySelector('.driver-popover')"))
+  expect_null(input_value(app, "e2e_anchor_ok_cicerone_started"))
+
+  logs <- app$get_logs()
+  errors <- logs[logs$location == "chromote" & logs$level == "error", ]
+  expect_equal(nrow(errors), 0)
+})
+
+test_that("a stale wait_for_visible completion after reset+restart does not move the restarted tour", {
+  skip_e2e()
+  app <- e2e_app()
+  on.exit(app$stop(), add = TRUE)
+
+  # guide_anchor_race: step 1 (el1, always visible), step 2 (late_visible,
+  # wait_for_visible = 2000) -- start, Next onto the waiting step 2, then
+  # reset and restart immediately (well within the 2000ms wait), and only
+  # THEN reveal #late_visible. The original Next click's wait_for_visible
+  # poll is still in flight when it resolves visible = TRUE; it must not
+  # move the freshly restarted tour.
+  app$click(input = "btn_start_anchor_race")
+  app$wait_for_value(input = "e2e_anchor_race_cicerone_state")
+  state0 <- input_value(app, "e2e_anchor_race_cicerone_state")
+  expect_equal(state0$index, 0)
+
+  app$click(selector = ".driver-popover-next-btn")
+  app$wait_for_idle()
+
+  app$click(input = "btn_reset_anchor_race")
+  app$wait_for_idle()
+  app$click(input = "btn_start_anchor_race")
+  # the restarted tour lands back on step 1 (index 0) -- the exact same
+  # content as `state0`, so a plain wait_for_value(ignore = list(state0))
+  # would never resolve; wait_for_idle() (the server round trip for this
+  # click) is enough since driveNow()/destroy() are synchronous JS
+  app$wait_for_idle()
+
+  app$click(input = "btn_reveal_late_visible")
+  # past the 1s reveal plus a margin, still well inside the original
+  # wait's 2000ms window
+  Sys.sleep(1.5)
+  app$wait_for_idle()
+
+  state <- input_value(app, "e2e_anchor_race_cicerone_state")
+  expect_equal(state$index, 0)
+
+  logs <- app$get_logs()
+  errors <- logs[logs$location == "chromote" & logs$level == "error", ]
+  expect_equal(nrow(errors), 0)
 })

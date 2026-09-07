@@ -15,6 +15,9 @@ import {
   wrapClose,
   emitInput,
   emitEvent,
+  // --- async-safety begin ---
+  bumpNavGen,
+  // --- async-safety end ---
 } from "./bridge.js";
 import {
   evalFunction,
@@ -292,6 +295,15 @@ export const prepareConfig = (id, config) => {
       // on the way out); kept as a safety net for the one path that skips
       // onDeselected entirely -- destroy() called while nothing is active.
       disarmAdvance(id);
+      // async-safety: the catch-all bump for every destroy path that
+      // actually reaches driver.js's teardown (done, close, dismissed,
+      // superseded, a user hook calling opts.driver.destroy() directly,
+      // ...) -- see the `navGen` note in bridge.js. cicerone-reset/
+      // destroy-all/exclusive-supersede bump their own id(s) directly
+      // too, since destroy() on a driver that was never actually active
+      // (e.g. reset while still waiting on wait_for_visible for the very
+      // first step) never reaches this hook at all.
+      bumpNavGen(id);
       if (userDestroyed) userDestroyed(element, step, hookOpts);
 
       const reason = pendingReason[id] || "dismissed";

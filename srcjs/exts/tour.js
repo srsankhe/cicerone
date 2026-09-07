@@ -9,6 +9,10 @@ import {
   wrapPrevious,
   emitEvent,
   emitInput,
+  // --- async-safety begin ---
+  bumpNavGen,
+  currentNavGen,
+  // --- async-safety end ---
 } from "./bridge.js";
 import {
   evalFunction,
@@ -155,6 +159,13 @@ Shiny.addCustomMessageHandler("cicerone-set-config", function (opts) {
 Shiny.addCustomMessageHandler("cicerone-start", function (opts) {
   const id = opts.id;
   if (!drivers[id]) return console.warn("cicerone: no tour", id);
+  // --- async-safety begin ---
+  // every start attempt is its own generation: a wait_for_visible poll
+  // scheduled by an earlier, now-superseded attempt (below, or from a
+  // Next/Previous click) must not act once this one has begun (see the
+  // `navGen` note in bridge.js)
+  bumpNavGen(id);
+  // --- async-safety end ---
   const driver = drivers[id];
   let config = driver.getConfig();
 
@@ -189,6 +200,10 @@ Shiny.addCustomMessageHandler("cicerone-start", function (opts) {
     Object.keys(drivers).forEach((otherId) => {
       const other = drivers[otherId];
       if (otherId !== id && other && other.isActive()) {
+        // async-safety: invalidate any wait_for_visible poll still in
+        // flight for the tour being superseded (see the `navGen` note
+        // in bridge.js)
+        bumpNavGen(otherId);
         pendingReason[otherId] = "superseded";
         other.destroy();
       }
@@ -294,8 +309,18 @@ Shiny.addCustomMessageHandler("cicerone-start", function (opts) {
   const targetStep = steps[startIndex];
   const waitMs = effectiveWaitForVisible(targetStep, config);
   if (waitMs > 0 && targetStep && targetStep.element) {
+    // async-safety: captured now (see the `navGen` note in bridge.js) --
+    // this start attempt already bumped its own generation above, so a
+    // reset/restart/destroy-all that happens before this wait resolves
+    // is what would move the generation on, not this line
+    const gen = currentNavGen(id);
     waitForVisible(targetStep.element, { timeout: waitMs, requireVisible: true }).then(
       (result) => {
+        // stale: something else (reset, destroy_all, a newer start, an
+        // exclusive supersede) has already happened for this id -- do
+        // not emit anchor_timeout and do not drive a tour that is no
+        // longer this attempt's to drive
+        if (currentNavGen(id) !== gen) return;
         if (!result.visible) {
           emitEvent(id, "anchor_timeout", {
             index: startIndex,
@@ -322,6 +347,8 @@ Shiny.addCustomMessageHandler("cicerone-destroy-all", function (opts) {
   Object.keys(drivers).forEach((id) => {
     const driver = drivers[id];
     if (driver && driver.isActive()) {
+      // async-safety: see the `navGen` note in bridge.js
+      bumpNavGen(id);
       pendingReason[id] = "programmatic";
       driver.destroy();
     }
@@ -350,6 +377,11 @@ Shiny.addCustomMessageHandler("cicerone-forget", function (opts) {
 
 Shiny.addCustomMessageHandler("cicerone-reset", function (opts) {
   if (!drivers[opts.id]) return;
+  // async-safety: see the `navGen` note in bridge.js -- bumped even
+  // though `destroy()` below may be a no-op (e.g. resetting a tour still
+  // waiting on its very first `wait_for_visible`, before any step was
+  // ever actively highlighted, never invokes the wrapped `onDestroyed`)
+  bumpNavGen(opts.id);
   pendingReason[opts.id] = "programmatic";
   drivers[opts.id].destroy();
 });

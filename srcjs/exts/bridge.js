@@ -33,6 +33,33 @@ export let active = {};
 // --- WP7 end ---
 export let pendingReason = {};
 
+// --- async-safety begin: per-id navigation generation counter ---
+// `drivers[id]` stays the SAME instance across `destroy()` -- it is only
+// ever replaced by a fresh `Driver()` in `cicerone-init` -- so a plain
+// `drivers[id]` truthiness check inside a `wait_for_visible` poll's
+// `.then()` (see `gateMove()` below, and the equivalent wait in tour.js's
+// `cicerone-start`) cannot tell a completion tied to the navigation that
+// scheduled it apart from one that has since been reset/restarted: the
+// same (still-truthy) instance is what a later `$start()` re-drives.
+// `navGen[id]` is bumped on every `cicerone-start`, `cicerone-reset`,
+// `cicerone-destroy-all`, an exclusive supersede, the wrapped
+// `onDestroyed` (steps.js's `prepareConfig`, the catch-all for every
+// other destroy path), and each Next/Previous initiation (`wrapNext`/
+// `wrapPrevious` below). A pending wait captures the generation when it
+// begins (`currentNavGen(id)`); if the id's generation has since moved
+// on by the time the wait resolves, the completion is stale and is
+// discarded outright -- no emit, no move -- rather than acting on
+// (or resurrecting) a tour the stale wait no longer describes.
+export let navGen = {};
+
+export const bumpNavGen = (id) => {
+  navGen[id] = (navGen[id] || 0) + 1;
+  return navGen[id];
+};
+
+export const currentNavGen = (id) => navGen[id] || 0;
+// --- async-safety end ---
+
 // Snapshot of the driver state sent to Shiny.
 // `highlighted`, `previous`, `before_previous` and `has_next` are kept
 // for backwards compatibility with cicerone < 2.0.0.
@@ -127,9 +154,12 @@ const gateMove = (id, targetStep, targetIndex, direction, move) => {
   const waitMs = effectiveWaitForVisible(targetStep, config);
   if (!(waitMs > 0)) return move();
 
+  // captured now, so any reset/restart/next-click that happens before
+  // this wait resolves invalidates it (see the `navGen` note above)
+  const gen = currentNavGen(id);
   waitForVisible(targetStep.element, { timeout: waitMs, requireVisible: true }).then(
     (result) => {
-      if (!drivers[id]) return;
+      if (!drivers[id] || currentNavGen(id) !== gen) return;
       if (result.visible) return move();
 
       const state = getStateData(drivers[id]);
@@ -159,6 +189,10 @@ const gateMove = (id, targetStep, targetIndex, direction, move) => {
 //    explicitly returns `false`
 export const wrapNext = (id, fn) => {
   return (element, step, opts) => {
+    // a new Next initiation invalidates any wait_for_visible poll still
+    // in flight from an earlier Next/Previous click on this id (see the
+    // `navGen` note above)
+    bumpNavGen(id);
     const state = getStateData(drivers[id]);
     emitInput(id, "next", state);
     emitEvent(id, "next", state);
@@ -177,6 +211,8 @@ export const wrapNext = (id, fn) => {
 
 export const wrapPrevious = (id, fn) => {
   return (element, step, opts) => {
+    // see the matching comment in wrapNext() above
+    bumpNavGen(id);
     const state = getStateData(drivers[id]);
     emitInput(id, "previous", state);
     emitEvent(id, "previous", state);
