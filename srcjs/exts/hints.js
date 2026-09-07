@@ -20,10 +20,19 @@ Shiny.addCustomMessageHandler("cicerone-hints-init", function (opts) {
     if (hinters[id]) hinters[id].dismiss(hint.id != null ? hint.id : index);
   };
 
-  // notify Shiny when hints are opened/dismissed
-  const userOpen = config.onOpen;
-  config.onOpen = (element, hint, hookOpts) => {
-    if (userOpen) userOpen(element, hint, hookOpts);
+  // Shared emission logic for onOpen/onDismiss, factored so both the
+  // config-level wrap below AND a per-hint override (hint.onOpen/
+  // hint.onDismiss, wrapped in the hintsList.forEach loop below) run the
+  // exact same bookkeeping. driver.js resolves `hint.onOpen||config.onOpen`
+  // and `hint.onDismiss||config.onDismiss` (see `F()`/`L()` in hints.mjs:
+  // `(n.hint.onOpen||t.onOpen)?.(...)`, `(i.hint.onDismiss||t.onDismiss)?.(...)`)
+  // -- hint-level, when present, is called INSTEAD of config-level, the
+  // same last-one-defined-wins contract onButtonClick already has here.
+  // Before this factoring, a hint's own on_open/on_dismiss was only
+  // `evalHooks()`'d (string -> function) and never wrapped, so driver.js
+  // called the user's raw hook directly and cicerone never saw the event.
+  const wrapHintOpen = (userFn) => (element, hint, hookOpts) => {
+    if (userFn) userFn(element, hint, hookOpts);
     const index = hintsList.indexOf(hint);
     const el = stripHash(hint.element);
     emitInput(id, "hint_opened", { id: hint.id || null, element: el });
@@ -34,9 +43,8 @@ Shiny.addCustomMessageHandler("cicerone-hints-init", function (opts) {
     });
   };
 
-  const userDismiss = config.onDismiss;
-  config.onDismiss = (element, hint, hookOpts) => {
-    if (userDismiss) userDismiss(element, hint, hookOpts);
+  const wrapHintDismiss = (userFn) => (element, hint, hookOpts) => {
+    if (userFn) userFn(element, hint, hookOpts);
     const index = hintsList.indexOf(hint);
     const el = stripHash(hint.element);
     emitInput(id, "hint_dismissed", { id: hint.id || null, element: el });
@@ -46,6 +54,11 @@ Shiny.addCustomMessageHandler("cicerone-hints-init", function (opts) {
       total_steps: total,
     });
   };
+
+  // notify Shiny when hints are opened/dismissed (config-level fallback,
+  // used for every hint that defines no on_open/on_dismiss of its own)
+  config.onOpen = wrapHintOpen(config.onOpen);
+  config.onDismiss = wrapHintDismiss(config.onDismiss);
 
   // a supplied onButtonClick replaces driver.js's default dismiss-on-click
   // (see `N()` in hints.mjs: `if(r) return r(...); L(e.id)` never reaches
@@ -70,6 +83,11 @@ Shiny.addCustomMessageHandler("cicerone-hints-init", function (opts) {
 
   hintsList.forEach((hint, index) => {
     evalHooks(hint, ["onOpen", "onDismiss"]);
+    // a hint-level onOpen/onDismiss takes precedence over the config-level
+    // wrap above (same resolver as `F()`/`L()` in hints.mjs), so it needs
+    // the same emission wrap to keep Shiny in sync
+    if (hint.onOpen) hint.onOpen = wrapHintOpen(hint.onOpen);
+    if (hint.onDismiss) hint.onDismiss = wrapHintDismiss(hint.onDismiss);
     if (hint.popover) {
       evalHooks(hint.popover, ["onButtonClick", "onPopoverRender"]);
       // popover-level onButtonClick takes precedence over the config-level
