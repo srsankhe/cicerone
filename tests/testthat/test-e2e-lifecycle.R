@@ -1,0 +1,402 @@
+# WP1 end-to-end coverage: tour lifecycle inputs (`_started`, `_ended`,
+# `_event`), reason detection, and driver.js-parity edge cases, driven
+# through a real browser via shinytest2/chromote. Skipped unless
+# CICERONE_E2E=true (see helper-e2e.R for the install requirement this
+# implies).
+
+test_that("starting the tour fires _started once, and move_to() does not re-fire it", {
+  skip_e2e()
+  app <- e2e_app()
+  on.exit(app$stop(), add = TRUE)
+
+  app$click(input = "btn_start")
+  app$wait_for_value(input = "e2e_cicerone_started")
+
+  started <- input_value(app, "e2e_cicerone_started")
+  expect_equal(started$index, 0)
+  expect_equal(started$total_steps, 4)
+
+  app$click(input = "btn_move_to_2")
+  app$wait_for_value(input = "e2e_cicerone_state")
+  app$wait_for_idle()
+
+  # move_to() re-highlights without a fresh drive(); `_started` must not
+  # have re-fired (it would report index 1 if it had)
+  started_after <- input_value(app, "e2e_cicerone_started")
+  expect_equal(started_after$index, 0)
+})
+
+test_that("clicking Done on the last step ends the tour with reason done", {
+  skip_e2e()
+  app <- e2e_app()
+  on.exit(app$stop(), add = TRUE)
+
+  app$click(input = "btn_start")
+  app$wait_for_value(input = "e2e_cicerone_state")
+  state0 <- input_value(app, "e2e_cicerone_state")
+
+  app$click(selector = ".driver-popover-next-btn")
+  app$wait_for_value(input = "e2e_cicerone_state", ignore = list(state0))
+  state1 <- input_value(app, "e2e_cicerone_state")
+
+  app$click(selector = ".driver-popover-next-btn")
+  app$wait_for_value(input = "e2e_cicerone_state", ignore = list(state1))
+  state2 <- input_value(app, "e2e_cicerone_state")
+  expect_equal(state2$index, 2)
+
+  # step 4 (index 3), the module element -- see test-e2e-baseline.R
+  app$click(selector = ".driver-popover-next-btn")
+  app$wait_for_value(input = "e2e_cicerone_state", ignore = list(state2))
+  state3 <- input_value(app, "e2e_cicerone_state")
+  expect_equal(state3$index, 3)
+  expect_equal(state3$highlighted, "m-inner")
+
+  # last step: the same button now reads "Done"
+  app$click(selector = ".driver-popover-next-btn")
+  app$wait_for_value(input = "e2e_cicerone_ended")
+
+  ended <- input_value(app, "e2e_cicerone_ended")
+  expect_equal(ended$reason, "done")
+  expect_true(ended$completed)
+  expect_equal(ended$index, 3)
+  expect_equal(ended$total_steps, 4)
+  expect_false(is.null(input_value(app, "e2e_cicerone_next")))
+})
+
+test_that("clicking the close button ends the tour with reason close", {
+  skip_e2e()
+  app <- e2e_app()
+  on.exit(app$stop(), add = TRUE)
+
+  app$click(input = "btn_start")
+  app$wait_for_value(input = "e2e_cicerone_state")
+
+  app$click(selector = ".driver-popover-close-btn")
+  app$wait_for_value(input = "e2e_cicerone_ended")
+
+  ended <- input_value(app, "e2e_cicerone_ended")
+  expect_equal(ended$reason, "close")
+  expect_false(ended$completed)
+})
+
+test_that("$reset() ends the tour with reason programmatic", {
+  skip_e2e()
+  app <- e2e_app()
+  on.exit(app$stop(), add = TRUE)
+
+  app$click(input = "btn_start")
+  app$wait_for_value(input = "e2e_cicerone_state")
+
+  app$click(input = "btn_reset")
+  app$wait_for_value(input = "e2e_cicerone_ended")
+
+  ended <- input_value(app, "e2e_cicerone_ended")
+  expect_equal(ended$reason, "programmatic")
+  expect_false(ended$completed)
+})
+
+test_that("pressing Escape ends the tour with reason dismissed", {
+  skip_e2e()
+  app <- e2e_app()
+  on.exit(app$stop(), add = TRUE)
+
+  app$click(input = "btn_start")
+  app$wait_for_value(input = "e2e_cicerone_state")
+
+  # driver.js 1.8.0 detects Escape on `keyup` (see `Q()`/`ee()` in
+  # driver.js.mjs, which binds `Q` to `keyup` and reserves `keydown` for
+  # Tab-trapping only), not `keydown`
+  app$run_js(
+    "document.dispatchEvent(new KeyboardEvent('keyup', {key: 'Escape', bubbles: true}))"
+  )
+  app$wait_for_value(input = "e2e_cicerone_ended")
+
+  ended <- input_value(app, "e2e_cicerone_ended")
+  expect_equal(ended$reason, "dismissed")
+})
+
+test_that("clicking the overlay ends the tour with reason dismissed", {
+  skip_e2e()
+  app <- e2e_app()
+  on.exit(app$stop(), add = TRUE)
+
+  app$click(input = "btn_start")
+  app$wait_for_value(input = "e2e_cicerone_state")
+
+  # driver.js only treats a click on the overlay's `<path>` cutout as an
+  # overlay click (see `k()` in driver.js.mjs), not the `<svg>` wrapper.
+  # `app$click(selector=)` calls the DOM `.click()` method, which SVG
+  # elements in this Chrome build don't implement, so dispatch a real
+  # MouseEvent instead.
+  app$run_js(
+    "document.querySelector('.driver-overlay path').dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true}))"
+  )
+  app$wait_for_value(input = "e2e_cicerone_ended")
+
+  ended <- input_value(app, "e2e_cicerone_ended")
+  expect_equal(ended$reason, "dismissed")
+})
+
+test_that("the _event stream for a full run is started, highlighted, next, highlighted, next, highlighted, next, highlighted, done, ended", {
+  skip_e2e()
+  app <- e2e_app()
+  on.exit(app$stop(), add = TRUE)
+
+  app$click(input = "btn_start")
+  app$wait_for_value(input = "e2e_cicerone_state")
+  state0 <- input_value(app, "e2e_cicerone_state")
+
+  app$click(selector = ".driver-popover-next-btn")
+  app$wait_for_value(input = "e2e_cicerone_state", ignore = list(state0))
+  state1 <- input_value(app, "e2e_cicerone_state")
+
+  app$click(selector = ".driver-popover-next-btn")
+  app$wait_for_value(input = "e2e_cicerone_state", ignore = list(state1))
+  state2 <- input_value(app, "e2e_cicerone_state")
+
+  # step 4 (index 3), the module element
+  app$click(selector = ".driver-popover-next-btn")
+  app$wait_for_value(input = "e2e_cicerone_state", ignore = list(state2))
+
+  app$click(selector = ".driver-popover-next-btn")
+  app$wait_for_value(input = "e2e_cicerone_ended")
+  app$wait_for_idle()
+
+  log <- app$get_value(export = "event_log")
+  expect_equal(
+    strsplit(log, ",")[[1]],
+    c(
+      "started", "highlighted", "next", "highlighted", "next",
+      "highlighted", "next", "highlighted", "done", "ended"
+    )
+  )
+})
+
+test_that("$move_forward() fires _next and event:next, matching the popover Next button", {
+  skip_e2e()
+  app <- e2e_app()
+  on.exit(app$stop(), add = TRUE)
+
+  app$click(input = "btn_start")
+  app$wait_for_value(input = "e2e_cicerone_state")
+  state0 <- input_value(app, "e2e_cicerone_state")
+
+  app$click(input = "btn_move_forward")
+  app$wait_for_value(input = "e2e_cicerone_next")
+  app$wait_for_value(input = "e2e_cicerone_state", ignore = list(state0))
+
+  expect_false(is.null(input_value(app, "e2e_cicerone_next")))
+  state1 <- input_value(app, "e2e_cicerone_state")
+  expect_equal(state1$index, 1)
+})
+
+test_that("a step's on_close returning false keeps the tour open", {
+  skip_e2e()
+  app <- e2e_app()
+  on.exit(app$stop(), add = TRUE)
+
+  app$click(input = "btn_start_close_false")
+  app$wait_for_value(input = "e2e_close_false_cicerone_state")
+
+  app$click(selector = ".driver-popover-close-btn")
+  app$wait_for_idle()
+
+  expect_true(app$get_js("document.querySelector('.driver-popover') !== null"))
+  expect_null(input_value(app, "e2e_close_false_cicerone_ended"))
+})
+
+test_that("driver.js parity: an on_next-only last step still fires on Done, ending with reason done", {
+  skip_e2e()
+  app <- e2e_app()
+  on.exit(app$stop(), add = TRUE)
+
+  app$click(input = "btn_start_parity")
+  app$wait_for_value(input = "e2e_parity_cicerone_state")
+
+  # the sole step is also the last step, so the button reads "Done"
+  app$click(selector = ".driver-popover-next-btn")
+  app$wait_for_value(input = "e2e_parity_cicerone_ended")
+
+  expect_true(isTRUE(input_value(app, "last_next_fired")))
+  expect_false(is.null(input_value(app, "e2e_parity_cicerone_next")))
+
+  ended <- input_value(app, "e2e_parity_cicerone_ended")
+  expect_equal(ended$reason, "done")
+  expect_true(ended$completed)
+})
+
+test_that("a config-level on_close_click that destroys itself does not double-destroy", {
+  skip_e2e()
+  app <- e2e_app()
+  on.exit(app$stop(), add = TRUE)
+
+  app$click(input = "btn_start_close_destroy")
+  app$wait_for_value(input = "e2e_close_destroy_cicerone_state")
+
+  app$click(selector = ".driver-popover-close-btn")
+  app$wait_for_value(input = "e2e_close_destroy_cicerone_ended")
+  app$wait_for_idle()
+
+  ended <- input_value(app, "e2e_close_destroy_cicerone_ended")
+  expect_equal(ended$reason, "close")
+  expect_equal(app$get_value(export = "close_destroy_ended_count"), 1)
+
+  logs <- app$get_logs()
+  errors <- logs[logs$location == "chromote" & logs$level == "error", ]
+  expect_equal(nrow(errors), 0)
+})
+
+test_that("a step-level on_highlighted override still fires _state/_started and event:highlighted", {
+  skip_e2e()
+  app <- e2e_app()
+  on.exit(app$stop(), add = TRUE)
+
+  app$click(input = "btn_start_step_highlighted")
+  app$wait_for_value(input = "e2e_step_highlighted_cicerone_started")
+  app$wait_for_idle()
+
+  started <- input_value(app, "e2e_step_highlighted_cicerone_started")
+  expect_equal(started$index, 0)
+
+  state <- input_value(app, "e2e_step_highlighted_cicerone_state")
+  expect_false(is.null(state))
+  expect_equal(state$highlighted, "el1")
+
+  # "highlighted" is emitted after "started" for the very same highlight
+  # (see highlightBookkeeping() in steps.js), so the latest value of the
+  # unified event stream is "highlighted" by the time _started has fired
+  event <- input_value(app, "e2e_step_highlighted_cicerone_event")
+  expect_equal(event$type, "highlighted")
+})
+
+test_that("a hint's own on_open/on_dismiss still fire hint_opened/hint_dismissed (Copilot review item 1)", {
+  skip_e2e()
+  app <- e2e_app()
+  on.exit(app$stop(), add = TRUE)
+
+  app$click(input = "btn_show_hints_open_dismiss")
+  app$wait_for_js("document.querySelector('.driver-hint') !== null")
+
+  app$click(selector = ".driver-hint")
+  app$wait_for_value(input = "e2e_hints_open_dismiss_cicerone_hint_opened")
+
+  opened <- input_value(app, "e2e_hints_open_dismiss_cicerone_hint_opened")
+  expect_equal(opened$element, "el2")
+
+  # the hint defines no on_button_click of its own, so the config-level
+  # default wrapper (hints.js) still dismisses it after the click
+  app$click(selector = ".driver-popover-next-btn")
+  app$wait_for_value(input = "e2e_hints_open_dismiss_cicerone_hint_button")
+  app$wait_for_value(input = "e2e_hints_open_dismiss_cicerone_hint_dismissed")
+
+  hb <- input_value(app, "e2e_hints_open_dismiss_cicerone_hint_button")
+  hd <- input_value(app, "e2e_hints_open_dismiss_cicerone_hint_dismissed")
+  expect_equal(hb$element, "el2")
+  expect_equal(hd$element, "el2")
+})
+
+test_that("a step-level on_done fires the hook, _next, and ends with reason done (Copilot review item 2)", {
+  skip_e2e()
+  app <- e2e_app()
+  on.exit(app$stop(), add = TRUE)
+
+  app$click(input = "btn_start_step_done")
+  app$wait_for_value(input = "e2e_step_done_cicerone_state")
+
+  # the sole step is also the last step: the button reads "Done"
+  app$click(selector = ".driver-popover-next-btn")
+  app$wait_for_value(input = "e2e_step_done_cicerone_ended")
+
+  expect_true(isTRUE(input_value(app, "step_done_hook_fired")))
+  expect_false(is.null(input_value(app, "e2e_step_done_cicerone_next")))
+
+  ended <- input_value(app, "e2e_step_done_cicerone_ended")
+  expect_equal(ended$reason, "done")
+  expect_true(ended$completed)
+
+  expect_false(app$get_js("!!document.querySelector('.driver-popover')"))
+})
+
+test_that("a step-level on_done returning false keeps the tour open (Copilot review item 2)", {
+  skip_e2e()
+  app <- e2e_app()
+  on.exit(app$stop(), add = TRUE)
+
+  app$click(input = "btn_start_step_done_false")
+  app$wait_for_value(input = "e2e_step_done_false_cicerone_state")
+
+  app$click(selector = ".driver-popover-next-btn")
+  app$wait_for_idle()
+
+  expect_true(app$get_js("document.querySelector('.driver-popover') !== null"))
+  expect_null(input_value(app, "e2e_step_done_false_cicerone_ended"))
+})
+
+test_that("$start() on an already-active tour destroys and restarts cleanly (Copilot review item 3)", {
+  skip_e2e()
+  app <- e2e_app()
+  on.exit(app$stop(), add = TRUE)
+
+  app$click(input = "btn_start")
+  app$wait_for_value(input = "e2e_cicerone_state")
+
+  app$click(selector = ".driver-popover-next-btn")
+  app$wait_for_value(input = "e2e_cicerone_next")
+  app$wait_for_idle()
+  state1 <- input_value(app, "e2e_cicerone_state")
+  expect_equal(state1$index, 1)
+
+  app$click(input = "btn_start")
+  app$wait_for_value(input = "e2e_cicerone_state", ignore = list(state1))
+  app$wait_for_value(input = "e2e_cicerone_ended")
+  app$wait_for_idle()
+
+  ended <- input_value(app, "e2e_cicerone_ended")
+  expect_equal(ended$reason, "restarted")
+  expect_false(ended$completed)
+
+  # the old popover/overlay must be torn down, not left orphaned alongside
+  # a fresh pair (see the setSteps()/resetState() note in tour.js)
+  expect_equal(app$get_js("document.querySelectorAll('.driver-popover').length"), 1)
+  expect_equal(app$get_js("document.querySelectorAll('.driver-overlay').length"), 1)
+
+  state <- input_value(app, "e2e_cicerone_state")
+  expect_equal(state$index, 0)
+
+  # `_started`'s own value is identical (index 0) both times, so the
+  # accumulated `_event` stream (fired every time regardless of value
+  # repetition) is what actually proves it fired a SECOND time, right
+  # after "ended"
+  log <- strsplit(app$get_value(export = "event_log"), ",")[[1]]
+  expect_equal(sum(log == "started"), 2)
+  expect_equal(sum(log == "ended"), 1)
+  expect_equal(utils::tail(log, 2), c("started", "highlighted"))
+})
+
+test_that("a hint's on_button_click still auto-dismisses the hint", {
+  skip_e2e()
+  app <- e2e_app()
+  on.exit(app$stop(), add = TRUE)
+
+  app$click(input = "btn_show_hints_button")
+  app$wait_for_js("document.querySelector('.driver-hint') !== null")
+
+  app$click(selector = ".driver-hint")
+  app$wait_for_value(input = "e2e_hints_button_cicerone_hint_opened")
+
+  app$click(selector = ".driver-popover-next-btn")
+  app$wait_for_value(input = "e2e_hints_button_cicerone_hint_button")
+  app$wait_for_value(input = "e2e_hints_button_cicerone_hint_dismissed")
+
+  hb <- input_value(app, "e2e_hints_button_cicerone_hint_button")
+  hd <- input_value(app, "e2e_hints_button_cicerone_hint_dismissed")
+  expect_equal(hb$element, "el1")
+  expect_equal(hd$element, "el1")
+
+  expect_true(app$get_js(
+    "(function(){
+      var el = document.querySelector('.driver-popover');
+      return !el || getComputedStyle(el).display === 'none';
+    })()"
+  ))
+})

@@ -15,6 +15,8 @@
 #' `{id}_cicerone_hint_dismissed`, and `{id}_cicerone_hint_button`.
 #' Each carries a list with the hint's `id` and `element`.
 #'
+#' @seealso [cicerone_inputs]
+#'
 #' @export
 Hints <- R6::R6Class(
   "Hints",
@@ -97,6 +99,8 @@ Hints <- R6::R6Class(
 #' @param on_open JavaScript function called when this hint is opened.
 #' @param on_dismiss JavaScript function called when this hint is
 #' dismissed.
+#' @param on_popover_render JavaScript function called when this hint's
+#' popover is rendered.
 #' @param beacon_side Side of the element the beacon is placed on.
 #' @param beacon_align Alignment of the beacon along the chosen side.
 #' @param beacon_animate Whether the beacon pulses.
@@ -108,9 +112,9 @@ Hints <- R6::R6Class(
     hint = function(el, title = NULL, description = NULL, side = NULL,
       align = NULL, popover_class = NULL, show_button = NULL,
       button_text = NULL, on_button_click = NULL, on_open = NULL,
-      on_dismiss = NULL, beacon_side = NULL, beacon_align = NULL,
-      beacon_animate = NULL, beacon_class = NULL, hint_id = NULL,
-      data = NULL) {
+      on_dismiss = NULL, on_popover_render = NULL, beacon_side = NULL,
+      beacon_align = NULL, beacon_animate = NULL, beacon_class = NULL,
+      hint_id = NULL, data = NULL) {
 
       assertthat::assert_that(!missing(el), msg = "Must pass `el`")
 
@@ -124,7 +128,8 @@ Hints <- R6::R6Class(
         popoverClass = popover_class,
         showButton = show_button,
         buttonText = button_text,
-        onButtonClick = on_button_click
+        onButtonClick = on_button_click,
+        onPopoverRender = on_popover_render
       ))
 
       beacon <- drop_nulls(list(
@@ -261,6 +266,16 @@ Hints <- R6::R6Class(
         session <- shiny::getDefaultReactiveDomain()
       session$sendCustomMessage("cicerone-hints-refresh", list(id = private$id))
       invisible(self)
+    },
+#' @details
+#' Retrieve this set of hints' unique identifier.
+    get_id = function(){
+      private$id
+    },
+#' @details
+#' Retrieve the list of hints as they will be sent to driver.js.
+    get_hints = function(){
+      private$hints
     }
   ),
   private = list(

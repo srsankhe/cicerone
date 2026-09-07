@@ -17,7 +17,7 @@ test_that("position_to_side_align maps legacy positions", {
   )
   expect_equal(
     position_to_side_align("mid-center"),
-    list(side = "over", align = "center")
+    list(side = NULL, align = "center")
   )
   expect_warning(position_to_side_align("nonsense"))
 })

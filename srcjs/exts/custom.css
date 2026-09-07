@@ -3,3 +3,249 @@
   driver.js 1.x uses an SVG overlay (no stage element), so the
   pre-2.0.0 overlay hack is no longer required.
 */
+
+/*
+  WP9: theming variables.
+
+  Every rule below sets exactly one CSS custom property's default equal
+  to driver.js's own built-in look (values read straight out of
+  node_modules/driver.js/dist/driver.css), then applies it with a single
+  class selector -- the same specificity driver.css itself uses for
+  these rules. This file is imported after "driver.js/dist/driver.css"
+  in cicerone.js, so at equal specificity these rules win the cascade,
+  and a consumer's own override of the same custom property (e.g. via
+  `cicerone_theme()`, itself a single-class rule) wins over both. With no
+  override supplied anywhere, every computed value below is unchanged
+  from driver.js's default -- verified with shinytest2 in
+  test-e2e-progress.R.
+
+  Variable -> element mapping:
+    --cicerone-surface     .driver-popover background; the one visible
+                            border side of the popover arrow, all four
+                            `.driver-popover-arrow-side-*` variants
+                            (must match the surface so the arrow reads as
+                            a solid-colour pointer, not a colour clash)
+    --cicerone-text         .driver-popover / -title / -description color
+    --cicerone-muted        .driver-popover-close-btn icon color (idle)
+    --cicerone-accent       .driver-popover-next-btn background (layered
+                            on top of --cicerone-btn-bg for that one
+                            button, so themed Next differs from a plain
+                            Prev/Close without a second driver.js class
+                            to hang it off)
+    --cicerone-radius       .driver-popover border-radius
+    --cicerone-font-size    .driver-popover-description font-size (the
+                            body/content text; title keeps its own fixed
+                            19px, which driver.js itself never varies)
+    --cicerone-shadow       .driver-popover box-shadow
+    --cicerone-btn-bg       .driver-popover-footer-btn background (next/
+                            previous/close all start from this)
+    --cicerone-btn-text     .driver-popover-footer-btn color
+    --cicerone-progress-fg  .driver-popover-progress-text color, and the
+                            filled portion of a "bar"/"dots" progress
+                            style
+    --cicerone-progress-bg  the unfilled track of a "bar"/"dots" progress
+                            style (brand new with WP9 -- driver.js has no
+                            default to preserve here)
+
+  WP10 additions (typography/layout; NAS consumer gap analysis):
+    --driver-popover-font-family
+                            NOT a --cicerone-* property -- this is
+                            driver.js's OWN custom property (declared on
+                            .driver-popover in driver.css itself, with
+                            driver's default font stack baked in as its
+                            var() fallback). cicerone_theme(font_family=)
+                            sets this directly instead of adding a
+                            parallel --cicerone-font-family, since the
+                            hook already exists and already survives
+                            driver.css's `all: unset` (font-family is
+                            inheritable, so unset resolves to inherited,
+                            but driver.css explicitly re-declares it via
+                            this var() right after `all: unset` for
+                            exactly this reason). No rule in this file
+                            sets it -- driver.css already does.
+    --cicerone-title-size   .driver-popover-title font-size (title's
+                            own size was explicitly out of scope for
+                            --cicerone-font-size, which is
+                            description-only -- see above)
+    --cicerone-title-weight .driver-popover-title font-weight
+    --cicerone-line-height  .driver-popover-description line-height
+                            (description-scoped, same convention as
+                            --cicerone-font-size; title's line-height is
+                            untouched)
+    --cicerone-btn-font-size
+                            .driver-popover-footer-btn font-size
+    --cicerone-btn-border   .driver-popover-footer-btn border (a full
+                            shorthand value, matching the existing
+                            --cicerone-shadow convention)
+    --cicerone-btn-radius   .driver-popover-footer-btn border-radius
+                            (independent of --cicerone-radius, which is
+                            popover-shell-only)
+    --cicerone-btn-hover-bg .driver-popover-footer-btn:hover/:focus
+                            background (one variable for every footer
+                            button; no per-button hover granularity)
+    --cicerone-max-width    .driver-popover max-width
+*/
+.driver-popover {
+  background-color: var(--cicerone-surface, #fff);
+  color: var(--cicerone-text, #2d2d2d);
+  border-radius: var(--cicerone-radius, 5px);
+  box-shadow: var(--cicerone-shadow, 0 1px 10px #0006);
+  max-width: var(--cicerone-max-width, 300px);
+}
+
+.driver-popover-title {
+  color: var(--cicerone-text, #2d2d2d);
+  font-size: var(--cicerone-title-size, 19px);
+  font-weight: var(--cicerone-title-weight, 700);
+}
+
+.driver-popover-description {
+  color: var(--cicerone-text, #2d2d2d);
+  font-size: var(--cicerone-font-size, 14px);
+  line-height: var(--cicerone-line-height, 1.5);
+}
+
+.driver-popover-close-btn {
+  color: var(--cicerone-muted, #d2d2d2);
+}
+
+.driver-popover-close-btn:hover,
+.driver-popover-close-btn:focus {
+  color: var(--cicerone-text, #2d2d2d);
+}
+
+.driver-popover-footer-btn {
+  background-color: var(--cicerone-btn-bg, #fff);
+  color: var(--cicerone-btn-text, #2d2d2d);
+  font-size: var(--cicerone-btn-font-size, 12px);
+  border: var(--cicerone-btn-border, 1px solid #ccc);
+  border-radius: var(--cicerone-btn-radius, 3px);
+}
+
+.driver-popover-footer-btn:hover,
+.driver-popover-footer-btn:focus {
+  background-color: var(--cicerone-btn-hover-bg, #f7f7f7);
+}
+
+/* Next specifically also carries the accent variable. Same selector
+   specificity as the rule above (one class); declared after it, so at
+   equal specificity this wins for `.driver-popover-next-btn` only,
+   leaving Prev/Close on the plain btn-bg. Both variables default to
+   driver.js's own #fff, so the default look is identical either way. */
+.driver-popover-next-btn {
+  background-color: var(--cicerone-accent, #fff);
+}
+
+/* Arrow: driver.css sets all four border sides to the same colour on
+   `.driver-popover-arrow`, then each `-side-*` class makes three of the
+   four transparent, leaving one visible edge as the pointer. Overriding
+   the shorthand on the base class would clobber that transparency (our
+   rule would land after driver.css's per-side overrides in the cascade,
+   at equal specificity); instead each rule below re-colours only the ONE
+   longhand that stays visible for that side, leaving driver.css's own
+   transparent longhands on the other three untouched. */
+.driver-popover-arrow-side-left {
+  border-left-color: var(--cicerone-surface, #fff);
+}
+
+.driver-popover-arrow-side-right {
+  border-right-color: var(--cicerone-surface, #fff);
+}
+
+.driver-popover-arrow-side-top {
+  border-top-color: var(--cicerone-surface, #fff);
+}
+
+.driver-popover-arrow-side-bottom {
+  border-bottom-color: var(--cicerone-surface, #fff);
+}
+
+/*
+  WP9: progress bar / dots.
+
+  driver.js always populates `.driver-popover-progress-text` with its
+  templated "{{current}} of {{total}}" string, but only shows it
+  (`display: block` vs `none`) when `showProgress` is true -- see `x()`
+  in dist/driver.js.mjs. A "bar"/"dots" `progress_style` forces
+  `showProgress` on R-side for exactly this reason, then repurposes that
+  same span as the drawing surface instead of adding new DOM: its text is
+  zeroed out visually and it becomes a fixed-size canvas painted with a
+  background gradient, sized off `--cicerone-progress-current`/`-total`
+  (set on `.driver-popover` by progress.js's wrapped `onPopoverRender`).
+
+  Bar: a flat, single-colour fill, no loop needed -- `calc()` alone turns
+  the current/total pair into a fill percentage.
+
+  Dots: CSS cannot loop `total` times, so a `repeating-linear-gradient`
+  stands in for "N dots": one dot-width of colour followed by one
+  dot-width of transparency, repeated forever via `background-size`. The
+  track's own width is set to exactly `total` dot-pairs wide so precisely
+  `total` dots are visible, and a second, identically-striped gradient is
+  clipped to the "filled" width the same way the bar is, so dots up to
+  `current` read as filled and the rest read as track.
+*/
+.driver-popover-progress-text {
+  color: var(--cicerone-progress-fg, #727272);
+}
+
+.driver-popover.cicerone-progress-bar .driver-popover-progress-text,
+.driver-popover.cicerone-progress-dots .driver-popover-progress-text {
+  position: relative;
+  display: inline-block;
+  overflow: hidden;
+  color: transparent;
+  font-size: 0;
+}
+
+.driver-popover.cicerone-progress-bar .driver-popover-progress-text {
+  width: 80px;
+  height: 6px;
+  border-radius: 3px;
+  background-color: var(--cicerone-progress-bg, #e0e0e0);
+}
+
+.driver-popover.cicerone-progress-bar .driver-popover-progress-text::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: calc(
+    var(--cicerone-progress-current, 1) / var(--cicerone-progress-total, 1) *
+      100%
+  );
+  background-color: var(--cicerone-progress-fg, #727272);
+  border-radius: inherit;
+}
+
+.driver-popover.cicerone-progress-dots .driver-popover-progress-text {
+  --cicerone-dot: 6px;
+  width: calc(var(--cicerone-progress-total, 1) * var(--cicerone-dot) * 2);
+  height: var(--cicerone-dot);
+  border-radius: calc(var(--cicerone-dot) / 2);
+  background-color: transparent;
+  background-image: repeating-linear-gradient(
+    to right,
+    var(--cicerone-progress-bg, #e0e0e0) 0,
+    var(--cicerone-progress-bg, #e0e0e0) var(--cicerone-dot),
+    transparent var(--cicerone-dot),
+    transparent calc(var(--cicerone-dot) * 2)
+  );
+  background-size: calc(var(--cicerone-dot) * 2) 100%;
+}
+
+.driver-popover.cicerone-progress-dots .driver-popover-progress-text::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: calc(
+    var(--cicerone-progress-current, 1) / var(--cicerone-progress-total, 1) *
+      100%
+  );
+  background-image: repeating-linear-gradient(
+    to right,
+    var(--cicerone-progress-fg, #727272) 0,
+    var(--cicerone-progress-fg, #727272) var(--cicerone-dot),
+    transparent var(--cicerone-dot),
+    transparent calc(var(--cicerone-dot) * 2)
+  );
+  background-size: calc(var(--cicerone-dot) * 2) 100%;
+}
