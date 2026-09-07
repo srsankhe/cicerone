@@ -64,6 +64,23 @@ test_that("progress_style = 'dots' adds the class and sets current/total", {
   expect_equal(progress_var(app, "--cicerone-progress-current"), "2")
 })
 
+test_that("a standalone highlight() with progress_style = 'bar' still renders the bar", {
+  skip_e2e()
+  app <- e2e_app()
+  on.exit(app$stop(), add = TRUE)
+
+  # Copilot review item F: `id = "e2e_adhoc"` has no preceding
+  # initialise()/$init() -- the ad hoc driver.js instance
+  # cicerone-highlight-man creates on first use must still wrap its
+  # config-level onPopoverRender (see tour.js) for the bar to render.
+  app$click(input = "btn_highlight_adhoc")
+  app$wait_for_js("document.querySelector('.driver-popover') !== null")
+
+  expect_true(app$get_js(
+    "document.querySelector('.driver-popover').classList.contains('cicerone-progress-bar')"
+  ))
+})
+
 test_that("cicerone_theme(accent, selector = '.e2e-themed') recolors only the themed tour's Next button", {
   skip_e2e()
   app <- e2e_app()

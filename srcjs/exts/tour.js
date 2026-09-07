@@ -49,6 +49,9 @@ import {
   persistMode,
 } from "./persist.js";
 // --- WP5 end ---
+// --- WP9 begin: standalone highlight() progress wrap ---
+import { wrapPopoverRender } from "./progress.js";
+// --- WP9 end ---
 
 Shiny.addCustomMessageHandler("cicerone-init", function (opts) {
   const id = opts.id || (opts.globals && opts.globals.id);
@@ -426,8 +429,20 @@ Shiny.addCustomMessageHandler("cicerone-highlight", function (opts) {
 Shiny.addCustomMessageHandler("cicerone-highlight-man", function (opts) {
   const id = opts.id;
   delete opts.id;
-  if (!drivers[id])
-    drivers[id] = Driver({ onHighlightStarted: cleanupStaleHighlights });
+  if (!drivers[id]) {
+    // WP9: wrap this ad hoc driver's own config-level `onPopoverRender`
+    // the same way `prepareConfig()` does for a real tour, so a
+    // `progress_style` passed to `highlight()`/`initialise()` for an id
+    // with no preceding `$init()` still renders a bar/dots -- without
+    // this, `driver.js`'s `H()`/`highlight()` falls back to THIS
+    // config-level hook (`r.onPopoverRender||e.getConfig('onPopoverRender')`
+    // in driver.js.mjs) whenever the call itself defines no per-call
+    // `on_popover_render`, and an unset config-level hook here means
+    // that fallback resolves to nothing at all.
+    const adhocConfig = { onHighlightStarted: cleanupStaleHighlights };
+    wrapPopoverRender(id, adhocConfig);
+    drivers[id] = Driver(adhocConfig);
+  }
   if (opts.popover) {
     evalHooks(opts.popover, POPOVER_HOOKS);
     if (opts.popover.onNextClick) {
