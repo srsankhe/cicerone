@@ -28,6 +28,8 @@ import { stripHash } from "./util.js";
 import {
   waitForVisible,
   effectiveWaitForVisible,
+  effectiveSkipMissingElement,
+  isVisible,
 } from "./anchor.js";
 // --- WP7 end ---
 // --- WP4 begin: extracted step/config preparation ---
@@ -349,13 +351,53 @@ Shiny.addCustomMessageHandler("cicerone-start", function (opts) {
         // not emit anchor_timeout and do not drive a tour that is no
         // longer this attempt's to drive
         if (currentNavGen(id) !== gen) return;
-        if (!result.visible) {
-          emitEvent(id, "anchor_timeout", {
-            index: startIndex,
-            highlighted: stripHash(targetStep.element),
-            total_steps: steps.length,
-          });
+        if (result.visible) return driveNow();
+
+        emitEvent(id, "anchor_timeout", {
+          index: startIndex,
+          highlighted: stripHash(targetStep.element),
+          total_steps: steps.length,
+        });
+
+        // Copilot review item 4: the Next/Previous gate (bridge.js's
+        // gateMove()) already skips a still-invisible target when
+        // skipMissingElement applies; the start path used to always
+        // driveNow() regardless, landing on a step it should have
+        // skipped. Mirror gateMove()'s policy here: honour the
+        // *timed-out* step's own effective skipMissingElement.
+        if (!effectiveSkipMissingElement(targetStep, config)) {
+          return driveNow();
         }
+
+        // advance to the next step (in the already show_if-filtered
+        // `steps`) that either does not need to wait at all, or is
+        // already visible right now -- a synchronous check, not another
+        // timed wait, since this step was already given its own chance
+        // to become visible via `wait_for_visible` above.
+        let nextIndex = -1;
+        for (let i = startIndex + 1; i < steps.length; i++) {
+          const candidate = steps[i];
+          if (effectiveWaitForVisible(candidate, config) <= 0 || !candidate.element) {
+            nextIndex = i;
+            break;
+          }
+          const el = document.querySelector(candidate.element);
+          if (el && isVisible(el)) {
+            nextIndex = i;
+            break;
+          }
+        }
+
+        if (nextIndex === -1) {
+          emitEvent(id, "no_visible_steps", {
+            index: null,
+            highlighted: null,
+            total_steps: 0,
+          });
+          return;
+        }
+
+        opts.step = nextIndex;
         driveNow();
       },
     );
