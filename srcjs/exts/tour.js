@@ -46,6 +46,7 @@ import {
   resumeIndex,
   forgetPersisted,
   persistRecords,
+  persistMode,
 } from "./persist.js";
 // --- WP5 end ---
 
@@ -369,9 +370,17 @@ Shiny.addCustomMessageHandler("cicerone-persist-record", function (opts) {
 // the cookie entry itself -- forgetPersisted() checks persistMode
 // itself). The adapter backend's `forget(id)` callback runs
 // server-side, in R/steps.R's `$forget()`, not here.
+//
+// `$forget()` is documented as a no-op when `persist` was never set for
+// this id (see R/steps.R); R still always sends `cicerone-forget`
+// (tested in test-persist.R), so that guarantee is enforced here: only
+// emit `_seen` when a backend (cookie or adapter) is actually
+// configured for this id. `forgetPersisted()` itself is already
+// harmless to call regardless (it only touches the cookie when
+// `persistMode[id] === "cookie"`).
 Shiny.addCustomMessageHandler("cicerone-forget", function (opts) {
   forgetPersisted(opts.id);
-  emitInput(opts.id, "seen", null);
+  if (persistMode[opts.id]) emitInput(opts.id, "seen", null);
 });
 // --- WP5 end ---
 
