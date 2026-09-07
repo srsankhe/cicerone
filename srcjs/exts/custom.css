@@ -46,21 +46,63 @@
     --cicerone-progress-bg  the unfilled track of a "bar"/"dots" progress
                             style (brand new with WP9 -- driver.js has no
                             default to preserve here)
+
+  WP10 additions (typography/layout; NAS consumer gap analysis):
+    --driver-popover-font-family
+                            NOT a --cicerone-* property -- this is
+                            driver.js's OWN custom property (declared on
+                            .driver-popover in driver.css itself, with
+                            driver's default font stack baked in as its
+                            var() fallback). cicerone_theme(font_family=)
+                            sets this directly instead of adding a
+                            parallel --cicerone-font-family, since the
+                            hook already exists and already survives
+                            driver.css's `all: unset` (font-family is
+                            inheritable, so unset resolves to inherited,
+                            but driver.css explicitly re-declares it via
+                            this var() right after `all: unset` for
+                            exactly this reason). No rule in this file
+                            sets it -- driver.css already does.
+    --cicerone-title-size   .driver-popover-title font-size (title's
+                            own size was explicitly out of scope for
+                            --cicerone-font-size, which is
+                            description-only -- see above)
+    --cicerone-title-weight .driver-popover-title font-weight
+    --cicerone-line-height  .driver-popover-description line-height
+                            (description-scoped, same convention as
+                            --cicerone-font-size; title's line-height is
+                            untouched)
+    --cicerone-btn-font-size
+                            .driver-popover-footer-btn font-size
+    --cicerone-btn-border   .driver-popover-footer-btn border (a full
+                            shorthand value, matching the existing
+                            --cicerone-shadow convention)
+    --cicerone-btn-radius   .driver-popover-footer-btn border-radius
+                            (independent of --cicerone-radius, which is
+                            popover-shell-only)
+    --cicerone-btn-hover-bg .driver-popover-footer-btn:hover/:focus
+                            background (one variable for every footer
+                            button; no per-button hover granularity)
+    --cicerone-max-width    .driver-popover max-width
 */
 .driver-popover {
   background-color: var(--cicerone-surface, #fff);
   color: var(--cicerone-text, #2d2d2d);
   border-radius: var(--cicerone-radius, 5px);
   box-shadow: var(--cicerone-shadow, 0 1px 10px #0006);
+  max-width: var(--cicerone-max-width, 300px);
 }
 
 .driver-popover-title {
   color: var(--cicerone-text, #2d2d2d);
+  font-size: var(--cicerone-title-size, 19px);
+  font-weight: var(--cicerone-title-weight, 700);
 }
 
 .driver-popover-description {
   color: var(--cicerone-text, #2d2d2d);
   font-size: var(--cicerone-font-size, 14px);
+  line-height: var(--cicerone-line-height, 1.5);
 }
 
 .driver-popover-close-btn {
@@ -75,6 +117,14 @@
 .driver-popover-footer-btn {
   background-color: var(--cicerone-btn-bg, #fff);
   color: var(--cicerone-btn-text, #2d2d2d);
+  font-size: var(--cicerone-btn-font-size, 12px);
+  border: var(--cicerone-btn-border, 1px solid #ccc);
+  border-radius: var(--cicerone-btn-radius, 3px);
+}
+
+.driver-popover-footer-btn:hover,
+.driver-popover-footer-btn:focus {
+  background-color: var(--cicerone-btn-hover-bg, #f7f7f7);
 }
 
 /* Next specifically also carries the accent variable. Same selector

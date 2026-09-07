@@ -151,19 +151,31 @@ test_that("default look (no progress_style, no theme) is unchanged", {
   expect_equal(popover_style(app, ".driver-popover", "color"), "rgb(45, 45, 45)")
   expect_equal(popover_style(app, ".driver-popover", "borderRadius"), "5px")
   expect_equal(popover_style(app, ".driver-popover", "fontSize"), "14px")
+  # WP10
+  expect_equal(popover_style(app, ".driver-popover", "maxWidth"), "300px")
 
   expect_equal(popover_style(app, ".driver-popover-title", "backgroundColor"), "rgba(0, 0, 0, 0)")
   expect_equal(popover_style(app, ".driver-popover-title", "color"), "rgb(45, 45, 45)")
   expect_equal(popover_style(app, ".driver-popover-title", "borderRadius"), "0px")
   expect_equal(popover_style(app, ".driver-popover-title", "fontSize"), "19px")
+  # WP10
+  expect_equal(popover_style(app, ".driver-popover-title", "fontWeight"), "700")
 
   expect_equal(popover_style(app, ".driver-popover-description", "backgroundColor"), "rgba(0, 0, 0, 0)")
   expect_equal(popover_style(app, ".driver-popover-description", "color"), "rgb(45, 45, 45)")
   expect_equal(popover_style(app, ".driver-popover-description", "borderRadius"), "0px")
   expect_equal(popover_style(app, ".driver-popover-description", "fontSize"), "14px")
+  # WP10
+  expect_equal(popover_style(app, ".driver-popover-description", "lineHeight"), "21px")
 
   expect_equal(popover_style(app, ".driver-popover-next-btn", "backgroundColor"), "rgb(255, 255, 255)")
   expect_equal(popover_style(app, ".driver-popover-next-btn", "color"), "rgb(45, 45, 45)")
   expect_equal(popover_style(app, ".driver-popover-next-btn", "borderRadius"), "3px")
   expect_equal(popover_style(app, ".driver-popover-next-btn", "fontSize"), "12px")
+  # WP10
+  expect_equal(popover_style(app, ".driver-popover-next-btn", "borderTopColor"), "rgb(204, 204, 204)")
+
+  # WP10: hover/focus background, unaffected by any theme
+  app$run_js("document.querySelector('.driver-popover-next-btn').focus()")
+  expect_equal(popover_style(app, ".driver-popover-next-btn:focus", "backgroundColor"), "rgb(247, 247, 247)")
 })

@@ -16,14 +16,28 @@ cicerone_theme(
   btn_text = NULL,
   progress_fg = NULL,
   progress_bg = NULL,
+  font_family = NULL,
+  title_size = NULL,
+  title_weight = NULL,
+  line_height = NULL,
+  btn_font_size = NULL,
+  btn_border = NULL,
+  btn_radius = NULL,
+  btn_hover_bg = NULL,
+  max_width = NULL,
   selector = ".driver-popover",
   preset = NULL
 )
 }
 \arguments{
-\item{surface, text, muted, accent, radius, font_size, shadow, btn_bg, btn_text, progress_fg, progress_bg}{CSS values for the corresponding custom property, e.g.:
+\item{surface, text, muted, accent, radius, font_size, shadow, btn_bg, btn_text, progress_fg, progress_bg, title_size, title_weight, line_height, btn_font_size, btn_border, btn_radius, btn_hover_bg, max_width}{CSS values for the corresponding custom property, e.g.:
 \code{accent = "#ff0000"}, \code{radius = "10px"}. \code{NULL} (the default) leaves
 that property unset.}
+
+\item{font_family}{CSS \code{font-family} value, e.g.
+\code{"Georgia, serif"}. Sets driver.js's own \code{--driver-popover-font-family}
+(see the CSS custom properties section below) rather than a
+\verb{--cicerone-*} property. \code{NULL} (the default) leaves it unset.}
 
 \item{selector}{CSS selector to set the properties on, e.g. a
 \code{popover_class} passed to \link{Cicerone}/\code{\link[=initialise]{initialise()}}/\code{\link[=highlight]{highlight()}}, to
@@ -41,8 +55,20 @@ matching semantic Bootstrap token (\code{--bs-body-bg}, \code{--bs-body-color},
 and \code{progress_fg} map to \code{--bs-primary} (buttons and the filled
 progress indicator read as the theme's primary color); \code{btn_text}
 maps to \code{--bs-white}; \code{progress_bg} maps to \code{--bs-secondary-bg} (the
-same token Bootstrap's own \code{.progress} track uses). Explicit arguments
-override the preset's value for that one property.}
+same token Bootstrap's own \code{.progress} track uses); \code{font_family} maps
+to \code{--bs-body-font-family} (so the popover inherits the app's own
+font); \code{line_height} maps to \code{--bs-body-line-height}; \code{btn_font_size}
+maps to \code{--bs-body-font-size} (Bootstrap's own \code{--bs-btn-font-size} is
+only declared inside \code{.btn}, not at the root, so this is the closest
+root-scoped token); \code{btn_border} maps to
+\verb{var(--bs-border-width) solid var(--bs-border-color)}; \code{btn_radius}
+maps to \code{--bs-border-radius} (the same token \code{.btn}'s own default
+resolves to); \code{btn_hover_bg} maps to \code{--bs-tertiary-bg} (the closest
+root-scoped "subtle surface" token; \code{--bs-btn-hover-bg} is
+component-scoped only). \code{title_size}, \code{title_weight} and \code{max_width}
+have no Bootstrap equivalent and are left unset by the preset --
+driver.js's own defaults stand unless you pass them explicitly.
+Explicit arguments override the preset's value for that one property.}
 }
 \value{
 An \link[htmltools:tags]{htmltools::tags} \verb{<style>} element.
@@ -76,6 +102,25 @@ and the filled portion of a \code{\link[=step]{step()}}/\code{\link[=initialise]
 \code{progress_style = "bar"}/\code{"dots"}.}
 \item{\code{progress_bg}}{\code{--cicerone-progress-bg}: the unfilled track of
 a \code{progress_style = "bar"}/\code{"dots"}.}
+\item{\code{font_family}}{Sets \code{--driver-popover-font-family} directly --
+driver.js's own custom property, not a \verb{--cicerone-*} one. driver.js
+already declares \code{.driver-popover}'s \code{font-family} from this
+variable (with its own font stack as the \code{var()} fallback), so
+there is no separate \code{--cicerone-font-family} to alias.}
+\item{\code{title_size}}{\code{--cicerone-title-size}: title font size.}
+\item{\code{title_weight}}{\code{--cicerone-title-weight}: title font weight.}
+\item{\code{line_height}}{\code{--cicerone-line-height}: description line
+height.}
+\item{\code{btn_font_size}}{\code{--cicerone-btn-font-size}: footer button
+font size.}
+\item{\code{btn_border}}{\code{--cicerone-btn-border}: footer button border
+(a full shorthand value, e.g. \code{"1px solid #ccc"}).}
+\item{\code{btn_radius}}{\code{--cicerone-btn-radius}: footer button corner
+radius (independent of \code{radius}, which is the popover shell only).}
+\item{\code{btn_hover_bg}}{\code{--cicerone-btn-hover-bg}: footer button
+background on hover/focus. One value for every footer button; there
+is no separate hover color for Next vs. Previous/Close.}
+\item{\code{max_width}}{\code{--cicerone-max-width}: popover max width.}
 }
 }
 
@@ -84,7 +129,11 @@ library(shiny)
 
 ui <- fluidPage(
   use_cicerone(),
-  cicerone_theme(accent = "#ff0000", radius = "10px")
+  cicerone_theme(accent = "#ff0000", radius = "10px"),
+  cicerone_theme(
+    font_family = "Georgia, serif", title_size = "24px",
+    btn_border = "2px solid #ff0000", selector = ".my-tour"
+  )
 )
 
 }

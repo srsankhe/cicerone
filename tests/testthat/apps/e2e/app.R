@@ -12,6 +12,9 @@ library(cicerone)
 # --- WP7 begin: htmltools for the anchor fixture's inline <script> ---
 library(htmltools)
 # --- WP7 end ---
+# --- WP10 begin: bslib for the preset = "bootstrap" fixture ---
+library(bslib)
+# --- WP10 end ---
 
 mod_ui <- function(id) {
   ns <- NS(id)
@@ -158,6 +161,20 @@ adhoc_highlight <- function() {
     "el1", "e2e_adhoc", title = "Ad hoc", progress_style = "bar"
   )
 }
+# --- WP10 begin: typography/layout arguments and the bootstrap preset ---
+# Explicit typography/layout overrides: font_family, title_size, and
+# btn_border on a dedicated selector so they don't affect any other tour.
+guide_typo <- Cicerone$
+  new(id = "e2e_typo", popover_class = "e2e-typo")$
+  step(el = "el1", title = "Typography", description = "Custom font/size/border.")
+
+# preset = "bootstrap": proves the popover inherits the app's own bslib
+# font via --bs-body-font-family, on a page that actually has a bslib
+# theme (unlike every other tour's plain fluidPage() styling).
+guide_bs <- Cicerone$
+  new(id = "e2e_bs", popover_class = "e2e-bs")$
+  step(el = "el1", title = "Bootstrap preset", description = "Font should match the app.")
+# --- WP10 end ---
 # --- WP7 begin: exclusive / destroy_all / anchor fixtures ---
 
 # A second, independent tour: exclusive start of this one (default) must
@@ -252,6 +269,19 @@ guide_showif_tail <- Cicerone$
 # fixture exists to test.
 
 ui <- fluidPage(
+  # --- WP10: a real bslib theme, needed so `--bs-*` variables (and the
+  # app's own body font-family) actually exist for the preset =
+  # "bootstrap" fixture below. `font_scale = 0.875` keeps the ambient
+  # base font-size at 14px (Bootstrap 5's own default is 16px, unlike
+  # Bootstrap 3's 14px that this fixture ran on pre-WP10) -- confirmed by
+  # empirical bisection: every driver.js property `.driver-popover`
+  # itself declares directly (background/color/border-radius/font-size
+  # on title, description, buttons, ...) is unaffected by the ambient
+  # base font-size either way, but `.driver-popover`'s OWN font-size is
+  # never set by driver.css or custom.css and so is purely inherited --
+  # without this scale, the pre-existing "default look" e2e assertion
+  # for that one inherited value would regress from 14px to 16px. ---
+  theme = bslib::bs_theme(font_scale = 0.875),
   use_cicerone(),
   tags$div(id = "el1", "Element 1"),
   tags$div(id = "el2", "Element 2"),
@@ -279,6 +309,8 @@ ui <- fluidPage(
   actionButton("btn_start_themed", "Start themed tour"),
   actionButton("btn_highlight_adhoc", "Highlight ad hoc (bar progress)"),
   actionButton("btn_forget_no_persist", "Forget tour with no persist"),
+  actionButton("btn_start_typo", "Start typography tour"),
+  actionButton("btn_start_bs", "Start bootstrap-preset tour"),
   verbatimTextOutput("out_state"),
   verbatimTextOutput("out_next"),
   verbatimTextOutput("out_previous"),
@@ -292,6 +324,13 @@ ui <- fluidPage(
   actionButton("btn_start_adv", "Start advance tour"),
   actionButton("btn_reset_adv", "Reset advance tour"),
   cicerone_theme(accent = "#ff0000", selector = ".e2e-themed"),
+  # --- WP10 begin: typography overrides + bootstrap preset ---
+  cicerone_theme(
+    font_family = "Georgia, serif", title_size = "24px",
+    btn_border = "2px solid rgb(255, 0, 0)", selector = ".e2e-typo"
+  ),
+  cicerone_theme(preset = "bootstrap", selector = ".e2e-bs"),
+  # --- WP10 end ---
 
   # --- WP7 begin: exclusive / destroy_all / anchor fixtures ---
   # Copilot review item G: #late_visible used to reveal itself 1s after
@@ -373,6 +412,10 @@ server <- function(input, output, session) {
   guide_bar$init()
   guide_dots$init()
   guide_themed$init()
+  # --- WP10 begin: typography/preset init ---
+  guide_typo$init()
+  guide_bs$init()
+  # --- WP10 end ---
   # --- WP7 begin: exclusive / destroy_all / anchor init ---
   guide_b$init()
   guide_nonexcl$init()
@@ -462,6 +505,10 @@ server <- function(input, output, session) {
   observeEvent(input$btn_start_themed, guide_themed$start())
   observeEvent(input$btn_highlight_adhoc, adhoc_highlight())
   observeEvent(input$btn_forget_no_persist, guide$forget())
+  # --- WP10 begin: typography/preset observers ---
+  observeEvent(input$btn_start_typo, guide_typo$start())
+  observeEvent(input$btn_start_bs, guide_bs$start())
+  # --- WP10 end ---
   # --- WP7 begin: exclusive / destroy_all / anchor observers ---
   observeEvent(input$btn_start_b, guide_b$start())
   observeEvent(input$btn_start_nonexcl, guide_nonexcl$start())

@@ -150,6 +150,17 @@
   variable, so a themed tour follows the app's bslib theme, including dark
   mode, automatically. With no theme applied, every popover's computed
   style is unchanged from driver.js's own default look.
+- `cicerone_theme()` gains typography and layout arguments: `font_family`
+  (sets driver.js's own `--driver-popover-font-family` directly, not a
+  `--cicerone-*` property), `title_size`, `title_weight`, `line_height`
+  (description line height), `btn_font_size`, `btn_border`, `btn_radius`,
+  `btn_hover_bg` (one hover color for every footer button), and
+  `max_width`. `preset = "bootstrap"` maps `font_family`, `line_height`,
+  `btn_font_size`, `btn_border`, `btn_radius`, and `btn_hover_bg` to the
+  matching root-scoped `--bs-*` token, so a bootstrap-themed popover
+  inherits the app's own font automatically; `title_size`, `title_weight`,
+  and `max_width` have no Bootstrap equivalent and are left unset by the
+  preset (driver.js's own defaults stand unless passed explicitly).
 
 - **Behaviour change:** `Cicerone$new(exclusive = )` now defaults to
   `TRUE`. Starting a tour destroys every other currently active tour

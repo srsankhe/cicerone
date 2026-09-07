@@ -172,7 +172,7 @@ tour <- Cicerone$new(id = "onboarding", persist = adapter)
 
 ### Progress and theming
 
-`progress_style` swaps the `"2 of 5"` text for a `"bar"` or `"dots"` indicator. `cicerone_theme(preset = "bootstrap")` maps popover colors to the app's own bslib theme, including dark mode.
+`progress_style` swaps the `"2 of 5"` text for a `"bar"` or `"dots"` indicator. `cicerone_theme()` also covers font family, title size/weight, description line height, footer button typography/border/hover, and popover max width. `preset = "bootstrap"` maps popover colors, font family, and these typography properties to the app's own bslib theme, including dark mode, so a themed popover picks up the app's own font automatically.
 
 ```r
 tour <- Cicerone$new(progress_style = "bar")$
