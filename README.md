@@ -83,7 +83,7 @@ observeEvent(input$demo_cicerone_ended, {
 tour$get_ended()
 ```
 
-`reason` is one of `"done"`, `"close"`, `"programmatic"`, `"superseded"`, `"suppressed"`, or `"dismissed"`; `completed` is `TRUE` exactly when `reason` is `"done"`.
+`reason` is one of `"done"`, `"close"`, `"programmatic"`, `"superseded"`, `"suppressed"`, or `"dismissed"`; `completed` is `TRUE` exactly when `reason` is `"done"`. `"suppressed"` is the one exception to "`_ended` means a tour was destroyed": it fires from a `run_once`/persisted-completed `$start()` that was refused outright, with no tour (and no popover) ever created.
 
 ### Wait for the user
 

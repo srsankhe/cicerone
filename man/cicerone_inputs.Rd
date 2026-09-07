@@ -15,8 +15,8 @@ previous time, and are the ones you want in \code{observeEvent()}.
 \tabular{llll}{
    Input \tab Event \tab Payload \tab Fires \cr
    \verb{\{id\}_cicerone_state} \tab no \tab \code{list(highlighted, previous, before_previous, has_next, has_previous, index, is_first, is_last, total_steps)} \tab every time a step is highlighted \cr
-   \verb{\{id\}_cicerone_next} \tab yes \tab same shape as \verb{_state} \tab the Next button is clicked (or a step's \code{on_next} fires it programmatically) \cr
-   \verb{\{id\}_cicerone_previous} \tab yes \tab same shape as \verb{_state} \tab the Previous button is clicked \cr
+   \verb{\{id\}_cicerone_next} \tab yes \tab same shape as \verb{_state} \tab the Next button is clicked, \verb{$move_forward()} is called, or a step's \code{on_next} fires it programmatically \cr
+   \verb{\{id\}_cicerone_previous} \tab yes \tab same shape as \verb{_state} \tab the Previous button is clicked, or \verb{$move_backward()} is called \cr
    \verb{\{id\}_cicerone_started} \tab yes \tab \code{list(index, total_steps)} \tab the first step is highlighted after \verb{$start()}; not re-fired by \verb{$move_to()} \cr
    \verb{\{id\}_cicerone_ended} \tab yes \tab \code{list(reason, completed, index, total_steps)} \tab the tour is destroyed, for any reason \cr
    \verb{\{id\}_cicerone_event} \tab yes \tab \code{list(type, index, element, total_steps, time)} \tab every lifecycle event below, in addition to its specific input \cr
@@ -32,8 +32,10 @@ step), \code{"close"} (the close button), \code{"programmatic"} (\verb{$reset()}
 \code{"superseded"} (another tour started with \code{exclusive = TRUE} while
 this one was active, see \link{Cicerone}), \code{"suppressed"} (\code{persist} is
 set, \verb{$init(run_once = TRUE)}, and the persisted record's \code{status} is
-already \code{"completed"}: \verb{$start()} does not drive the tour), or
-\code{"dismissed"} (Escape, an overlay click, or anything else).
+already \code{"completed"}: the refused \verb{$start()} never drives the tour
+or creates a popover at all -- \verb{_ended} still fires, with no matching
+\verb{_started}), or \code{"dismissed"} (Escape, an overlay click, or anything
+else).
 \code{completed} is \code{TRUE} exactly when \code{reason} is \code{"done"}.
 
 \code{type} in \verb{_event} is one of \code{"started"}, \code{"highlighted"}, \code{"next"},
