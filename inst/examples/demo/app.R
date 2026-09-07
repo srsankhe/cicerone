@@ -93,7 +93,8 @@ server <- function(input, output, session) {
 
   # README: Lifecycle inputs --------------------------------------------------
   # {id}_cicerone_ended fires whenever the tour stops, with the reason
-  # ("done", "close", "programmatic", "superseded", "suppressed", "dismissed").
+  # ("done", "close", "programmatic", "superseded", "suppressed",
+  # "restarted", "dismissed").
   output$ended <- renderPrint({
     req(input$demo_cicerone_ended)
   })

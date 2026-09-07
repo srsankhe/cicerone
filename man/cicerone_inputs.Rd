@@ -34,8 +34,9 @@ this one was active, see \link{Cicerone}), \code{"suppressed"} (\code{persist} i
 set, \verb{$init(run_once = TRUE)}, and the persisted record's \code{status} is
 already \code{"completed"}: the refused \verb{$start()} never drives the tour
 or creates a popover at all -- \verb{_ended} still fires, with no matching
-\verb{_started}), or \code{"dismissed"} (Escape, an overlay click, or anything
-else).
+\verb{_started}), \code{"restarted"} (\verb{$start()} was called again on this SAME
+tour while it was already active, see \link{Cicerone}'s \verb{$start()}), or
+\code{"dismissed"} (Escape, an overlay click, or anything else).
 \code{completed} is \code{TRUE} exactly when \code{reason} is \code{"done"}.
 
 \code{type} in \verb{_event} is one of \code{"started"}, \code{"highlighted"}, \code{"next"},

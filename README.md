@@ -83,7 +83,7 @@ observeEvent(input$demo_cicerone_ended, {
 tour$get_ended()
 ```
 
-`reason` is one of `"done"`, `"close"`, `"programmatic"`, `"superseded"`, `"suppressed"`, or `"dismissed"`; `completed` is `TRUE` exactly when `reason` is `"done"`. `"suppressed"` is the one exception to "`_ended` means a tour was destroyed": it fires from a `run_once`/persisted-completed `$start()` that was refused outright, with no tour (and no popover) ever created.
+`reason` is one of `"done"`, `"close"`, `"programmatic"`, `"superseded"`, `"suppressed"`, `"restarted"`, or `"dismissed"`; `completed` is `TRUE` exactly when `reason` is `"done"`. `"suppressed"` is the one exception to "`_ended` means a tour was destroyed": it fires from a `run_once`/persisted-completed `$start()` that was refused outright, with no tour (and no popover) ever created. `"restarted"` fires when `$start()` is called again on a tour that is already active -- it is destroyed and re-driven fresh rather than left running.
 
 ### Wait for the user
 
@@ -229,7 +229,7 @@ The bridge sets these Shiny inputs. `{id}` is the `id` of the `Cicerone`/`Hints`
 | `{id}_cicerone_hint_dismissed` | `{id, element}` | a hint is dismissed |
 | `{id}_cicerone_hint_button` | `{id, element}` | a hint popover's button is clicked |
 
-`reason` in `_ended` is one of `"done"`, `"close"`, `"programmatic"`, `"superseded"`, `"suppressed"`, or `"dismissed"`.
+`reason` in `_ended` is one of `"done"`, `"close"`, `"programmatic"`, `"superseded"`, `"suppressed"`, `"restarted"`, or `"dismissed"`.
 
 `type` in `_event` is one of `"started"`, `"highlighted"`, `"next"`, `"previous"`, `"done"`, `"close"`, `"ended"`, `"hint_opened"`, `"hint_dismissed"`, `"hint_button"`, `"advance"`, `"start_failed"`, `"anchor_timeout"`, or `"no_visible_steps"`.
 

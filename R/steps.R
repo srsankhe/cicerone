@@ -107,7 +107,10 @@ Cicerone <- R6::R6Class(
 #' each tour its own popover and overlay, so two active tours mean two
 #' `.driver-popover` elements on the page at once (and, upstream, a
 #' duplicate `driver-popover-content` id). Hints are unaffected: they are
-#' not tours. See [destroy_all()] for a session-wide teardown regardless
+#' not tours. Calling `$start()` on THIS SAME tour while it is already
+#' active always destroys and restarts it first, regardless of
+#' `exclusive` (`_ended` reason `"restarted"`); `exclusive` only concerns
+#' other tours. See [destroy_all()] for a session-wide teardown regardless
 #' of `exclusive`.
 #' @param wait_for_visible Milliseconds to wait, before starting or
 #' moving to a step, for that step's element to not just exist but have
@@ -150,8 +153,10 @@ Cicerone <- R6::R6Class(
 #'   tour, and `{id}_cicerone_ended` fires with `reason = "suppressed"`
 #'   instead.
 #' * `$start(resume = TRUE)` begins at the record's `idx` instead of the
-#'   requested `step`, when `status` is `"in_progress"` (i.e. the tour
-#'   was dismissed partway through, not completed).
+#'   requested `step`, when `status` is `"in_progress"` (i.e. the previous
+#'   run never reached an end event at all -- e.g. the page was reloaded
+#'   or the tab closed mid-tour -- not an explicit dismissal, which
+#'   already records `status = "dismissed"`).
 #'
 #' `persist = "cookie"` needs nothing further: the browser cookie is
 #' written and read by cicerone's own JavaScript. Read it server-side
@@ -612,7 +617,10 @@ Cicerone <- R6::R6Class(
     },
 # --- WP5 end ---
 #' @details
-#' Start Cicerone.
+#' Start Cicerone. Calling `$start()` again while this tour is already
+#' active first destroys the running one (`{id}_cicerone_ended` fires
+#' with `reason = "restarted"`) before starting fresh -- otherwise the
+#' old popover/overlay would be orphaned in the DOM instead of replaced.
 #'
 #' @param step The step index at which to start.
 #' @param session A valid Shiny session if `NULL` the function
@@ -797,9 +805,9 @@ Cicerone <- R6::R6Class(
     },
 #' @details Retrieve data that was fired when the tour ended: a list
 #' with `reason` (one of `"done"`, `"close"`, `"programmatic"`,
-#' `"superseded"`, `"suppressed"`, `"dismissed"`), `completed` (`TRUE`
-#' when `reason` is `"done"`), `index` and `total_steps`. See
-#' [cicerone_inputs].
+#' `"superseded"`, `"suppressed"`, `"restarted"`, `"dismissed"`),
+#' `completed` (`TRUE` when `reason` is `"done"`), `index` and
+#' `total_steps`. See [cicerone_inputs].
 #'
 #' @param session A valid Shiny session if `NULL` the function
 #' attempts to get the session with [shiny::getDefaultReactiveDomain()].

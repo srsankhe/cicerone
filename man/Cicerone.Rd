@@ -48,8 +48,10 @@ already \code{"completed"}, the next \verb{$start()} does not drive the
 tour, and \verb{\{id\}_cicerone_ended} fires with \code{reason = "suppressed"}
 instead.
 \item \verb{$start(resume = TRUE)} begins at the record's \code{idx} instead of the
-requested \code{step}, when \code{status} is \code{"in_progress"} (i.e. the tour
-was dismissed partway through, not completed).
+requested \code{step}, when \code{status} is \code{"in_progress"} (i.e. the previous
+run never reached an end event at all -- e.g. the page was reloaded
+or the tab closed mid-tour -- not an explicit dismissal, which
+already records \code{status = "dismissed"}).
 }
 
 \code{persist = "cookie"} needs nothing further: the browser cookie is
@@ -255,7 +257,10 @@ to \code{TRUE}. Set to \code{FALSE} to allow overlapping tours; driver.js gives
 each tour its own popover and overlay, so two active tours mean two
 \code{.driver-popover} elements on the page at once (and, upstream, a
 duplicate \code{driver-popover-content} id). Hints are unaffected: they are
-not tours. See \code{\link[=destroy_all]{destroy_all()}} for a session-wide teardown regardless
+not tours. Calling \verb{$start()} on THIS SAME tour while it is already
+active always destroys and restarts it first, regardless of
+\code{exclusive} (\verb{_ended} reason \code{"restarted"}); \code{exclusive} only concerns
+other tours. See \code{\link[=destroy_all]{destroy_all()}} for a session-wide teardown regardless
 of \code{exclusive}.}
       \item{\code{wait_for_visible}}{Milliseconds to wait, before starting or
 moving to a step, for that step's element to not just exist but have
@@ -562,7 +567,10 @@ or \code{"dismissed"}).}
     \if{html}{\out{</div>}}
   }
   \subsection{Details}{
-    Start Cicerone.
+    Start Cicerone. Calling \verb{$start()} again while this tour is already
+active first destroys the running one (\verb{\{id\}_cicerone_ended} fires
+with \code{reason = "restarted"}) before starting fresh -- otherwise the
+old popover/overlay would be orphaned in the DOM instead of replaced.
   }
 }
 
@@ -863,9 +871,9 @@ attempts to get the session with \code{\link[shiny:getDefaultReactiveDomain]{shi
   \subsection{Details}{
     Retrieve data that was fired when the tour ended: a list
 with \code{reason} (one of \code{"done"}, \code{"close"}, \code{"programmatic"},
-\code{"superseded"}, \code{"suppressed"}, \code{"dismissed"}), \code{completed} (\code{TRUE}
-when \code{reason} is \code{"done"}), \code{index} and \code{total_steps}. See
-\link{cicerone_inputs}.
+\code{"superseded"}, \code{"suppressed"}, \code{"restarted"}, \code{"dismissed"}),
+\code{completed} (\code{TRUE} when \code{reason} is \code{"done"}), \code{index} and
+\code{total_steps}. See \link{cicerone_inputs}.
   }
 }
 

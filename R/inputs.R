@@ -28,8 +28,9 @@
 #' set, `$init(run_once = TRUE)`, and the persisted record's `status` is
 #' already `"completed"`: the refused `$start()` never drives the tour
 #' or creates a popover at all -- `_ended` still fires, with no matching
-#' `_started`), or `"dismissed"` (Escape, an overlay click, or anything
-#' else).
+#' `_started`), `"restarted"` (`$start()` was called again on this SAME
+#' tour while it was already active, see [Cicerone]'s `$start()`), or
+#' `"dismissed"` (Escape, an overlay click, or anything else).
 #' `completed` is `TRUE` exactly when `reason` is `"done"`.
 #'
 #' `type` in `_event` is one of `"started"`, `"highlighted"`, `"next"`,
