@@ -23,9 +23,10 @@ element inside a hidden tab, which exists but has no size until the
 tab is shown.}
 
 \item{id}{Identifier of the \verb{\{id\}_cicerone_anchor} input the result is
-sent to. Defaults to a sanitised form of \code{selector}
-(\code{gsub("[^A-Za-z0-9]", "_", selector)}), so a call with no explicit
-\code{id} can be observed with, e.g., for \code{selector = "#late"}:
+sent to. Defaults to a sanitised form of \code{selector}: any leading \verb{#}/
+\code{.} is stripped, then every remaining non-alphanumeric character is
+replaced with \verb{_}. So a call with no explicit \code{id} can be observed
+with, e.g., for \code{selector = "#late"}:
 \code{observeEvent(input$late_cicerone_anchor, ...)}.}
 
 \item{session}{A valid Shiny session if \code{NULL} the function attempts to

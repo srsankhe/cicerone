@@ -46,9 +46,10 @@ destroy_all <- function(session = NULL) {
 #' element inside a hidden tab, which exists but has no size until the
 #' tab is shown.
 #' @param id Identifier of the `{id}_cicerone_anchor` input the result is
-#' sent to. Defaults to a sanitised form of `selector`
-#' (`gsub("[^A-Za-z0-9]", "_", selector)`), so a call with no explicit
-#' `id` can be observed with, e.g., for `selector = "#late"`:
+#' sent to. Defaults to a sanitised form of `selector`: any leading `#`/
+#' `.` is stripped, then every remaining non-alphanumeric character is
+#' replaced with `_`. So a call with no explicit `id` can be observed
+#' with, e.g., for `selector = "#late"`:
 #' `observeEvent(input$late_cicerone_anchor, ...)`.
 #' @param session A valid Shiny session if `NULL` the function attempts to
 #' get the session with [shiny::getDefaultReactiveDomain()].
@@ -69,7 +70,7 @@ wait_for_element <- function(selector, timeout = 5000, visible = TRUE,
   assertthat::assert_that(assertthat::is.flag(visible))
 
   if (is.null(id))
-    id <- gsub("[^A-Za-z0-9]", "_", selector)
+    id <- gsub("[^A-Za-z0-9]", "_", sub("^[#.]+", "", selector))
 
   if (is.null(session))
     session <- shiny::getDefaultReactiveDomain()

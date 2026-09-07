@@ -32,8 +32,19 @@ test_that("wait_for_element defaults visible to TRUE and id to a sanitised selec
   msg <- s$msgs[[1]]$message
   expect_true(msg$visible)
   expect_equal(msg$timeout, 5000)
-  expect_equal(msg$id, gsub("[^A-Za-z0-9]", "_", "#my.selector[data-x='1']"))
+  expect_equal(
+    msg$id,
+    gsub("[^A-Za-z0-9]", "_", sub("^[#.]+", "", "#my.selector[data-x='1']"))
+  )
   expect_equal(out, msg$id)
+})
+
+test_that("wait_for_element strips a leading '#'/'.' before sanitising the default id", {
+  s <- make_session()
+
+  expect_equal(wait_for_element("#late", session = s), "late")
+  expect_equal(wait_for_element(".card", session = s), "card")
+  expect_equal(wait_for_element("#a b", session = s), "a_b")
 })
 
 test_that("wait_for_element falls back to the default reactive domain", {
@@ -48,6 +59,6 @@ test_that("wait_for_element works with no tour ever created", {
   # no Cicerone$new() anywhere in this test
   id <- wait_for_element("#standalone", session = s)
 
-  expect_equal(id, "_standalone")
+  expect_equal(id, "standalone")
   expect_equal(s$msgs[[1]]$message$selector, "#standalone")
 })
