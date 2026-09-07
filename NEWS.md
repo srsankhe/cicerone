@@ -18,6 +18,49 @@
 - Documentation: JavaScript hook callbacks' `opts` argument now
   documents the `index` field driver.js provides, alongside `config`,
   `state`, and `driver`.
+- Documentation: `step(show_if = )`'s roxygen now matches the code
+  exactly: a requested `$start(step = )` that `show_if` hides starts at
+  the next visible step after it; if none follows, it starts at the
+  LAST visible step instead of not starting. `{id}_cicerone_event`'s
+  `type = "no_visible_steps"` fires only when every step is hidden. No
+  code change -- the JS already behaved this way.
+
+- **Behaviour change:** `$move_forward()`/`$move_backward()` now emit
+  `{id}_cicerone_next`/`_previous` and the matching `event:"next"`/
+  `"previous"` (a state snapshot taken before the move), matching the
+  popover's own Next/Previous buttons. Previously these R6 methods sent
+  `cicerone-next`/`cicerone-previous` straight to `moveNext()`/
+  `movePrevious()`, bypassing the wrapper that emits those inputs
+  entirely -- despite both being documented (README, `?cicerone_inputs`)
+  as firing them.
+- Async safety: a `wait_for_visible` move (the Next/Previous buttons, or
+  `$start()`) that is still pending when the tour is reset, destroyed,
+  restarted, or superseded no longer acts on completion. A per-id
+  navigation-generation counter, bumped on every such event, is captured
+  when the wait begins; a stale completion (a generation mismatch) is
+  now discarded outright -- no move, no `anchor_timeout` emit -- instead
+  of potentially moving a freshly restarted tour or resurrecting one
+  that had already ended.
+- A step's own `on_highlighted` no longer skips `_state`/`_started`, the
+  `started`/`highlighted` events, and the persisted-record writes for
+  that step. The bookkeeping driver.js's step-level override used to
+  bypass is now shared with the tour-level default (`highlightBookkeeping()`
+  in `steps.js`).
+- A standalone `highlight()`/`initialise()` call with `progress_style`
+  and no preceding `$init()` for the same id now renders the bar/dots,
+  instead of silently falling back to plain text.
+- `$set_config(progress_style = "text")` now actually reaches JS,
+  clearing a live tour's bar/dots progress on the next render.
+  Previously an explicit `"text"` was omitted from the payload the same
+  way the (irrelevant, already-`"text"`) default is, so it could not be
+  used to switch a bar/dots tour back.
+- `cicerone-forget`/`$forget()` no longer emits `{id}_cicerone_seen` for
+  a tour with no `persist` backend configured; it already had no record
+  to clear.
+- `wait_for_element()`'s default `id` (a sanitised form of `selector`)
+  now strips a leading `#`/`.` before sanitising, so e.g. `selector =
+  "#late"` yields `id = "late"` (previously `"_late"`), matching the
+  documented example.
 
 - New Shiny inputs for tour lifecycle and reason detection, fixing
   upstream JohnCoene/cicerone#59, #62 and #69 (upstream is archived; these
@@ -25,10 +68,13 @@
   - `{id}_cicerone_started`: fires once per `$start()`, with the 0-based
     `index` and `total_steps` of the first highlighted step. A later
     `$move_to()` does not re-fire it.
-  - `{id}_cicerone_ended`: fires whenever a tour is destroyed, with
-    `reason` (`"done"`, `"close"`, `"programmatic"` or `"dismissed"`) and
-    `completed` (`TRUE` exactly when `reason` is `"done"`), plus `index`
-    and `total_steps`. `reason` distinguishes the Done button, the close
+  - `{id}_cicerone_ended`: fires whenever a tour is destroyed, or a
+    `run_once`/persisted-completed `$start()` is refused, with `reason`
+    (`"done"`, `"close"`, `"programmatic"`, `"superseded"`,
+    `"suppressed"`, or `"dismissed"` -- the last two added later in this
+    same release, see `exclusive`/persistence below) and `completed`
+    (`TRUE` exactly when `reason` is `"done"`), plus `index` and
+    `total_steps`. `reason` distinguishes the Done button, the close
     button, a server-side `$reset()`/`$destroy()`, and everything else
     (Escape, an overlay click, or any other dismissal).
   - `{id}_cicerone_event`: a unified event stream, one input for every
@@ -93,10 +139,9 @@
   or `"dots"`. A step-level `progress_style` overrides the tour's default
   for that one step. `"bar"`/`"dots"` force `show_progress` on regardless
   of the `show_progress` argument, since the CSS that renders them needs
-  driver.js's own progress element in the DOM. Not wired for a standalone
-  `highlight()` call made without a preceding `initialise()`/`$init()` for
-  the same id — that ad hoc popover has no config to wrap, so it falls
-  back to plain text progress.
+  driver.js's own progress element in the DOM. Also renders for a
+  standalone `highlight()` call made with no preceding `initialise()`/
+  `$init()` for the same id.
 - New `cicerone_theme()`: emits a `<style>` tag setting the CSS custom
   properties `custom.css` reads for popover surface/text/accent/
   radius/font-size/shadow/button/progress colors, scoped to `.driver-popover`
