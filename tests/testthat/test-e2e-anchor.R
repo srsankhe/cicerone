@@ -110,6 +110,27 @@ test_that("wait_for_visible timing out emits anchor_timeout and still moves", {
   expect_true("anchor_timeout" %in% log)
 })
 
+test_that("a start-time wait_for_visible timeout honours skip_missing_element (Copilot review item 4)", {
+  skip_e2e()
+  app <- e2e_app()
+  on.exit(app$stop(), add = TRUE)
+
+  # #late_visible is never revealed in this test (btn_reveal_late_visible
+  # is never clicked), so the 300ms wait on step 1 always times out;
+  # skip_missing_element = TRUE must then land the start on step 2 (#el2)
+  # instead of driving step 1 anyway.
+  app$click(input = "btn_start_skip_start")
+  app$wait_for_value(input = "e2e_skip_start_cicerone_state", timeout = 5000)
+
+  state <- input_value(app, "e2e_skip_start_cicerone_state")
+  expect_equal(state$index, 1)
+  expect_equal(state$highlighted, "el2")
+
+  app$wait_for_idle()
+  log <- strsplit(app$get_value(export = "skip_start_event_log"), ",")[[1]]
+  expect_true("anchor_timeout" %in% log)
+})
+
 # --- async-safety: stale wait_for_visible completions (Copilot review item A) ---
 
 test_that("a stale wait_for_visible completion after $reset() does not resurrect the tour", {

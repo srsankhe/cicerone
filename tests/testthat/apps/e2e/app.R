@@ -102,6 +102,28 @@ guide_step_highlighted <- Cicerone$
     on_highlighted = "function(){}"
   )
 
+# Copilot review item 2: a step-level `on_done` (popover.onDoneClick) must
+# be wrapped the same way onNextClick/onCloseClick already are -- driver.js
+# resolves `step.popover.onDoneClick||config.onDoneClick` on the last step,
+# calling the step-level one INSTEAD of the config-level fallback wrapper
+# whenever it is defined. The sole step here is also the last step, so the
+# button reads "Done" immediately.
+guide_step_done <- Cicerone$
+  new(id = "e2e_step_done")$
+  step(
+    el = "el1", title = "Step-level on_done",
+    on_done = "function(){ Shiny.setInputValue('step_done_hook_fired', true, {priority: 'event'}); }"
+  )
+
+# Same shape, but the hook declines: the tour must stay open, matching the
+# config-level on_done/on_close/on_next "return false" contract.
+guide_step_done_false <- Cicerone$
+  new(id = "e2e_step_done_false")$
+  step(
+    el = "el1", title = "Step-level on_done returns false",
+    on_done = "function(){ return false; }"
+  )
+
 # WP1: a hint whose `on_button_click` does nothing (no explicit dismiss)
 # must still auto-dismiss, matching driver.js's default click behaviour.
 hints_button <- Hints$
@@ -110,6 +132,21 @@ hints_button <- Hints$
     el = "el1",
     title = "Button hint",
     on_button_click = "function(){}"
+  )
+
+# Copilot review item 1: a hint whose own `on_open`/`on_dismiss` are set
+# must still fire `_hint_opened`/`_hint_dismissed` -- driver.js resolves
+# `hint.onOpen||config.onOpen`/`hint.onDismiss||config.onDismiss`, calling
+# the hint-level one INSTEAD of the config-level wrapper whenever it is
+# defined, the same way a hint-level `on_button_click` already overrides
+# the config-level one (see `hints_button` above).
+hints_open_dismiss <- Hints$
+  new(id = "e2e_hints_open_dismiss")$
+  hint(
+    el = "el2",
+    title = "Open/dismiss hint",
+    on_open = "function(){}",
+    on_dismiss = "function(){}"
   )
 
 # WP6: a step advances on a named event on any element (not just the
@@ -216,6 +253,20 @@ guide_anchor_timeout <- Cicerone$
     description = "wait_for_visible shorter than the 1s reveal.",
     wait_for_visible = 300
   )
+
+# Copilot review item 4: a start-time `wait_for_visible` timeout must
+# honour `skip_missing_element`, the same way the Next/Previous gate
+# (bridge.js's gateMove()) already does. #late_visible is left hidden for
+# this whole test (the reveal button is never clicked), so the 300ms wait
+# on step 1 always times out; with skip_missing_element = TRUE, the start
+# must land on step 2 (#el2, always visible) instead of step 1.
+guide_skip_start <- Cicerone$
+  new(id = "e2e_skip_start", skip_missing_element = TRUE)$
+  step(
+    el = "late_visible", title = "Skip-start 1 (never visible)",
+    wait_for_visible = 300
+  )$
+  step(el = "el2", title = "Skip-start 2")
 # --- WP7 end ---
 # --- async-safety begin: stale wait_for_visible completion fixtures ---
 # A 2-step tour whose SECOND step targets #late_visible with a long
@@ -302,7 +353,10 @@ ui <- fluidPage(
   actionButton("btn_start_parity", "Start parity tour"),
   actionButton("btn_start_close_destroy", "Start close-destroy tour"),
   actionButton("btn_start_step_highlighted", "Start step-highlighted-override tour"),
+  actionButton("btn_start_step_done", "Start step-level on_done tour"),
+  actionButton("btn_start_step_done_false", "Start step-level on_done-false tour"),
   actionButton("btn_show_hints_button", "Show button hint"),
+  actionButton("btn_show_hints_open_dismiss", "Show open/dismiss hint"),
   actionButton("btn_start_bar", "Start bar tour"),
   actionButton("btn_bar_set_config_text", "Set bar tour progress_style = text"),
   actionButton("btn_start_dots", "Start dots tour"),
@@ -360,6 +414,7 @@ ui <- fluidPage(
   actionButton("btn_start_anchor_ok", "Start anchor-ok tour"),
   actionButton("btn_reset_anchor_ok", "Reset anchor-ok tour"),
   actionButton("btn_start_anchor_timeout", "Start anchor-timeout tour"),
+  actionButton("btn_start_skip_start", "Start skip-start tour"),
   actionButton("btn_wait_late", "wait_for_element(#late)"),
   actionButton("btn_wait_never", "wait_for_element(#never)"),
   actionButton("btn_wait_in_tab2", "wait_for_element(#in_tab2)"),
@@ -407,7 +462,10 @@ server <- function(input, output, session) {
   guide_parity$init()
   guide_close_destroy$init()
   guide_step_highlighted$init()
+  guide_step_done$init()
+  guide_step_done_false$init()
   hints_button$init()
+  hints_open_dismiss$init()
   guide_adv$init()
   guide_bar$init()
   guide_dots$init()
@@ -422,6 +480,7 @@ server <- function(input, output, session) {
   guide_chain$init()
   guide_anchor_ok$init()
   guide_anchor_timeout$init()
+  guide_skip_start$init()
   # --- WP7 end ---
   # --- async-safety begin ---
   guide_anchor_race$init()
@@ -494,7 +553,10 @@ server <- function(input, output, session) {
   observeEvent(input$btn_start_parity, guide_parity$start())
   observeEvent(input$btn_start_close_destroy, guide_close_destroy$start())
   observeEvent(input$btn_start_step_highlighted, guide_step_highlighted$start())
+  observeEvent(input$btn_start_step_done, guide_step_done$start())
+  observeEvent(input$btn_start_step_done_false, guide_step_done_false$start())
   observeEvent(input$btn_show_hints_button, hints_button$show())
+  observeEvent(input$btn_show_hints_open_dismiss, hints_open_dismiss$show())
   observeEvent(input$btn_start_adv, guide_adv$start())
   observeEvent(input$btn_reset_adv, guide_adv$reset())
   observeEvent(input$btn_start_bar, guide_bar$start())
@@ -517,6 +579,7 @@ server <- function(input, output, session) {
   observeEvent(input$btn_start_anchor_ok, guide_anchor_ok$start())
   observeEvent(input$btn_reset_anchor_ok, guide_anchor_ok$reset())
   observeEvent(input$btn_start_anchor_timeout, guide_anchor_timeout$start())
+  observeEvent(input$btn_start_skip_start, guide_skip_start$start())
   # --- async-safety begin ---
   observeEvent(input$btn_start_anchor_race, guide_anchor_race$start())
   observeEvent(input$btn_reset_anchor_race, guide_anchor_race$reset())
@@ -643,6 +706,12 @@ server <- function(input, output, session) {
       c(anchor_timeout_event_log(), input$e2e_anchor_timeout_cicerone_event$type)
     )
   })
+
+  # Copilot review item 4
+  skip_start_event_log <- reactiveVal(character(0))
+  observeEvent(input$e2e_skip_start_cicerone_event, {
+    skip_start_event_log(c(skip_start_event_log(), input$e2e_skip_start_cicerone_event$type))
+  })
   # --- WP7 end ---
 
   session$exportTestValues(
@@ -653,7 +722,8 @@ server <- function(input, output, session) {
     chain_event_log = paste(chain_event_log(), collapse = ","),
     b_event_log = paste(b_event_log(), collapse = ","),
     anchor_ok_event_log = paste(anchor_ok_event_log(), collapse = ","),
-    anchor_timeout_event_log = paste(anchor_timeout_event_log(), collapse = ",")
+    anchor_timeout_event_log = paste(anchor_timeout_event_log(), collapse = ","),
+    skip_start_event_log = paste(skip_start_event_log(), collapse = ",")
     # --- WP7 end ---
   )
 }

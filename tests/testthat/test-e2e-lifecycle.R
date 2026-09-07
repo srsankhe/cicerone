@@ -269,6 +269,110 @@ test_that("a step-level on_highlighted override still fires _state/_started and 
   expect_equal(event$type, "highlighted")
 })
 
+test_that("a hint's own on_open/on_dismiss still fire hint_opened/hint_dismissed (Copilot review item 1)", {
+  skip_e2e()
+  app <- e2e_app()
+  on.exit(app$stop(), add = TRUE)
+
+  app$click(input = "btn_show_hints_open_dismiss")
+  app$wait_for_js("document.querySelector('.driver-hint') !== null")
+
+  app$click(selector = ".driver-hint")
+  app$wait_for_value(input = "e2e_hints_open_dismiss_cicerone_hint_opened")
+
+  opened <- input_value(app, "e2e_hints_open_dismiss_cicerone_hint_opened")
+  expect_equal(opened$element, "el2")
+
+  # the hint defines no on_button_click of its own, so the config-level
+  # default wrapper (hints.js) still dismisses it after the click
+  app$click(selector = ".driver-popover-next-btn")
+  app$wait_for_value(input = "e2e_hints_open_dismiss_cicerone_hint_button")
+  app$wait_for_value(input = "e2e_hints_open_dismiss_cicerone_hint_dismissed")
+
+  hb <- input_value(app, "e2e_hints_open_dismiss_cicerone_hint_button")
+  hd <- input_value(app, "e2e_hints_open_dismiss_cicerone_hint_dismissed")
+  expect_equal(hb$element, "el2")
+  expect_equal(hd$element, "el2")
+})
+
+test_that("a step-level on_done fires the hook, _next, and ends with reason done (Copilot review item 2)", {
+  skip_e2e()
+  app <- e2e_app()
+  on.exit(app$stop(), add = TRUE)
+
+  app$click(input = "btn_start_step_done")
+  app$wait_for_value(input = "e2e_step_done_cicerone_state")
+
+  # the sole step is also the last step: the button reads "Done"
+  app$click(selector = ".driver-popover-next-btn")
+  app$wait_for_value(input = "e2e_step_done_cicerone_ended")
+
+  expect_true(isTRUE(input_value(app, "step_done_hook_fired")))
+  expect_false(is.null(input_value(app, "e2e_step_done_cicerone_next")))
+
+  ended <- input_value(app, "e2e_step_done_cicerone_ended")
+  expect_equal(ended$reason, "done")
+  expect_true(ended$completed)
+
+  expect_false(app$get_js("!!document.querySelector('.driver-popover')"))
+})
+
+test_that("a step-level on_done returning false keeps the tour open (Copilot review item 2)", {
+  skip_e2e()
+  app <- e2e_app()
+  on.exit(app$stop(), add = TRUE)
+
+  app$click(input = "btn_start_step_done_false")
+  app$wait_for_value(input = "e2e_step_done_false_cicerone_state")
+
+  app$click(selector = ".driver-popover-next-btn")
+  app$wait_for_idle()
+
+  expect_true(app$get_js("document.querySelector('.driver-popover') !== null"))
+  expect_null(input_value(app, "e2e_step_done_false_cicerone_ended"))
+})
+
+test_that("$start() on an already-active tour destroys and restarts cleanly (Copilot review item 3)", {
+  skip_e2e()
+  app <- e2e_app()
+  on.exit(app$stop(), add = TRUE)
+
+  app$click(input = "btn_start")
+  app$wait_for_value(input = "e2e_cicerone_state")
+
+  app$click(selector = ".driver-popover-next-btn")
+  app$wait_for_value(input = "e2e_cicerone_next")
+  app$wait_for_idle()
+  state1 <- input_value(app, "e2e_cicerone_state")
+  expect_equal(state1$index, 1)
+
+  app$click(input = "btn_start")
+  app$wait_for_value(input = "e2e_cicerone_state", ignore = list(state1))
+  app$wait_for_value(input = "e2e_cicerone_ended")
+  app$wait_for_idle()
+
+  ended <- input_value(app, "e2e_cicerone_ended")
+  expect_equal(ended$reason, "restarted")
+  expect_false(ended$completed)
+
+  # the old popover/overlay must be torn down, not left orphaned alongside
+  # a fresh pair (see the setSteps()/resetState() note in tour.js)
+  expect_equal(app$get_js("document.querySelectorAll('.driver-popover').length"), 1)
+  expect_equal(app$get_js("document.querySelectorAll('.driver-overlay').length"), 1)
+
+  state <- input_value(app, "e2e_cicerone_state")
+  expect_equal(state$index, 0)
+
+  # `_started`'s own value is identical (index 0) both times, so the
+  # accumulated `_event` stream (fired every time regardless of value
+  # repetition) is what actually proves it fired a SECOND time, right
+  # after "ended"
+  log <- strsplit(app$get_value(export = "event_log"), ",")[[1]]
+  expect_equal(sum(log == "started"), 2)
+  expect_equal(sum(log == "ended"), 1)
+  expect_equal(utils::tail(log, 2), c("started", "highlighted"))
+})
+
 test_that("a hint's on_button_click still auto-dismisses the hint", {
   skip_e2e()
   app <- e2e_app()
