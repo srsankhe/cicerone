@@ -1,4 +1,44 @@
-# cicerone 2.1.0 (development)
+# cicerone 2.1.0
+
+This release adds Shiny inputs for tour lifecycle and a unified event
+stream; mutable and conditional tours (`$set_steps()`/`$set_config()`/
+`show_if`); a new `advance_on`/`advance_when` step-advance mechanism;
+exclusive single-tour starts with a session-wide `destroy_all()`;
+element-readiness waits (`wait_for_element()` and `wait_for_visible`);
+built-in tour persistence, via a cookie cicerone manages or a
+server-side adapter you provide; and progress-bar/dots variants with
+CSS-variable theming (`cicerone_theme()`).
+
+## Behaviour changes
+
+- `exclusive` now defaults to `TRUE`: starting a tour destroys every
+  other currently active tour first (`reason = "superseded"`). Set
+  `exclusive = FALSE` to keep the pre-2.1.0 behaviour of overlapping
+  tours.
+- `{id}_cicerone_ended`'s `reason` gains three values beyond the
+  original four: `"superseded"` (another tour started with `exclusive =
+  TRUE` while this one was active), `"suppressed"` (a `run_once`/
+  persisted-completed `$start()` was refused outright, with no tour --
+  and no popover -- ever created), and `"restarted"` (`$start()` was
+  called again on a tour that was already active; it is destroyed and
+  redriven fresh rather than left running with an orphaned popover/
+  overlay).
+- `$move_forward()`/`$move_backward()` now emit `{id}_cicerone_next`/
+  `_previous` and the matching `event:"next"`/`"previous"`, matching the
+  popover's own Next/Previous buttons. Previously these R6 methods
+  called `moveNext()`/`movePrevious()` directly, bypassing the wrapper
+  that emits those inputs, despite both being documented as firing them.
+- The deprecated `position = "mid-center"` now maps to `align =
+  "center"` on driver.js's default `side`, since driver.js 1.x has no
+  direct equivalent for a step with an element.
+- A hint's `on_button_click` no longer replaces the default
+  dismiss-on-click behaviour: cicerone now calls `dismiss()` after the
+  hook runs, unless it returns `false`.
+- A step completed via `advance_on`/`advance_when` or `$move_forward()`
+  on the last step now reports `_ended$reason = "done"`, matching the
+  Done button -- driver.js's `moveNext()` destroys directly on the last
+  step without routing through Done's hooks, so cicerone tags the
+  reason itself.
 
 - Internal `srcjs/` split (`util.js`/`bridge.js`/`tour.js`/`hints.js`) and a
   new shinytest2 end-to-end test harness (`CICERONE_E2E=true`). No
@@ -71,12 +111,19 @@
   - `{id}_cicerone_ended`: fires whenever a tour is destroyed, or a
     `run_once`/persisted-completed `$start()` is refused, with `reason`
     (`"done"`, `"close"`, `"programmatic"`, `"superseded"`,
-    `"suppressed"`, or `"dismissed"` -- the last two added later in this
-    same release, see `exclusive`/persistence below) and `completed`
-    (`TRUE` exactly when `reason` is `"done"`), plus `index` and
-    `total_steps`. `reason` distinguishes the Done button, the close
-    button, a server-side `$reset()`/`$destroy()`, and everything else
-    (Escape, an overlay click, or any other dismissal).
+    `"suppressed"`, `"restarted"`, or `"dismissed"` -- the last three
+    added later in this same release, see `exclusive`/persistence/
+    `$start()` below) and `completed` (`TRUE` exactly when `reason` is
+    `"done"`), plus `index` and `total_steps`. `reason` distinguishes the
+    Done button, the close button, a server-side `$reset()`/`$destroy()`,
+    and everything else (Escape, an overlay click, or any other
+    dismissal).
+  - Calling `$start()` again on a tour that is already active now
+    destroys it first (`reason = "restarted"`) before starting fresh.
+    Previously the second `$start()` reused driver.js's own `setSteps()`/
+    `drive()`, which reset internal state without tearing anything down:
+    the old popover and overlay were left orphaned in the DOM alongside
+    the new ones, and `_started` did not re-fire.
   - `{id}_cicerone_event`: a unified event stream, one input for every
     lifecycle event (`started`, `highlighted`, `next`, `previous`,
     `done`, `close`, `ended`, `hint_opened`, `hint_dismissed`,
@@ -93,6 +140,13 @@
     `onNextClick` fallback: driver.js 1.x stops calling `onNextClick` on
     the last step once `onDoneClick` is defined anywhere, which cicerone
     now always does internally to detect `reason = "done"`.
+  - A step-level `on_done` (`step(on_done = )`) now fires `_next` and
+    `_ended`/`reason = "done"` the same way the tour-level `on_done_click`
+    already did, and the tour is destroyed unless the hook returns
+    `false`. Previously a step's own `on_done` ran but cicerone never saw
+    it: driver.js calls the step's `onDoneClick` INSTEAD of the
+    tour-level one whenever the step defines one, the same precedence
+    `on_next`/`on_close` already have.
 
 - Hints: a hint's `on_button_click` no longer replaces the default
   dismiss-on-click behaviour. Previously, defining `on_button_click` (or
@@ -100,6 +154,12 @@
   stopped auto-dismissing the hint, mirroring the `onCloseClick`
   replacement behaviour in driver.js tours; cicerone now calls
   `dismiss()` after the hook runs, unless the hook returns `false`.
+- Hints: a hint's own `on_open`/`on_dismiss` now fire
+  `{id}_cicerone_hint_opened`/`_hint_dismissed` too, matching the
+  tour-level `on_open`/`on_dismiss`. Previously they ran but cicerone
+  never saw it, the same precedence gap as `on_button_click` above:
+  driver.js calls a hint's own `onOpen`/`onDismiss` INSTEAD of the
+  config-level one whenever the hint defines one.
 - `initialise()` and `highlight()` now accept every option their `Cicerone`/
   `$step()` equivalents accept. `initialise()` gains `allow_scroll`,
   `disable_active_interaction`, `advance_on_click`, `skip_missing_element`,
@@ -180,7 +240,9 @@
   driver.js), so it only gates moves cicerone makes; on timeout it emits
   `{id}_cicerone_event` with `type = "anchor_timeout"` and moves anyway,
   unless `skip_missing_element` applies, in which case the step is
-  skipped.
+  skipped -- for `$start()` as well as the Next/Previous buttons, landing
+  on the next step that is visible or needs no wait at all (or emitting
+  `"no_visible_steps"` if none does).
 - New `wait_for_element()` function: a standalone element-readiness wait
   that needs no tour, for gating server-side logic on UI that renders
   asynchronously. Result arrives on `{id}_cicerone_anchor` (see

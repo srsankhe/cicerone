@@ -1,6 +1,6 @@
 {
   "name": "cicerone",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "JS build for cicerone: guided tours of Shiny applications using driver.js",
   "main": "index.js",
   "directories": {
