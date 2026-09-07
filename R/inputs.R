@@ -11,8 +11,8 @@
 #' | Input | Event | Payload | Fires |
 #' | --- | --- | --- | --- |
 #' | `{id}_cicerone_state` | no | `list(highlighted, previous, before_previous, has_next, has_previous, index, is_first, is_last, total_steps)` | every time a step is highlighted |
-#' | `{id}_cicerone_next` | yes | same shape as `_state` | the Next button is clicked (or a step's `on_next` fires it programmatically) |
-#' | `{id}_cicerone_previous` | yes | same shape as `_state` | the Previous button is clicked |
+#' | `{id}_cicerone_next` | yes | same shape as `_state` | the Next button is clicked, `$move_forward()` is called, or a step's `on_next` fires it programmatically |
+#' | `{id}_cicerone_previous` | yes | same shape as `_state` | the Previous button is clicked, or `$move_backward()` is called |
 #' | `{id}_cicerone_started` | yes | `list(index, total_steps)` | the first step is highlighted after `$start()`; not re-fired by `$move_to()` |
 #' | `{id}_cicerone_ended` | yes | `list(reason, completed, index, total_steps)` | the tour is destroyed, for any reason |
 #' | `{id}_cicerone_event` | yes | `list(type, index, element, total_steps, time)` | every lifecycle event below, in addition to its specific input |

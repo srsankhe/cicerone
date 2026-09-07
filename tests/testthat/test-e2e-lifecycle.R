@@ -160,6 +160,24 @@ test_that("the _event stream for a full run is started, highlighted, next, highl
   )
 })
 
+test_that("$move_forward() fires _next and event:next, matching the popover Next button", {
+  skip_e2e()
+  app <- e2e_app()
+  on.exit(app$stop(), add = TRUE)
+
+  app$click(input = "btn_start")
+  app$wait_for_value(input = "e2e_cicerone_state")
+  state0 <- input_value(app, "e2e_cicerone_state")
+
+  app$click(input = "btn_move_forward")
+  app$wait_for_value(input = "e2e_cicerone_next")
+  app$wait_for_value(input = "e2e_cicerone_state", ignore = list(state0))
+
+  expect_false(is.null(input_value(app, "e2e_cicerone_next")))
+  state1 <- input_value(app, "e2e_cicerone_state")
+  expect_equal(state1$index, 1)
+})
+
 test_that("a step's on_close returning false keeps the tour open", {
   skip_e2e()
   app <- e2e_app()

@@ -400,6 +400,15 @@ Shiny.addCustomMessageHandler("cicerone-reset", function (opts) {
 
 Shiny.addCustomMessageHandler("cicerone-next", function (opts) {
   if (!drivers[opts.id]) return;
+  // WP1 driver.js-parity / README: $move_forward() emits the same
+  // `_next` input and `event:"next"` the popover's own Next button does
+  // via wrapNext() -- moveNext() (unlike the popover button, which
+  // routes through the wrapped onNextClick) bypasses that wrapper
+  // entirely, so cicerone emits here instead, with a state snapshot
+  // taken before the move.
+  const state = getStateData(drivers[opts.id]);
+  emitInput(opts.id, "next", state);
+  emitEvent(opts.id, "next", state);
   // $move_forward() on the last step completes the tour (see advance.js)
   if (drivers[opts.id].isLastStep()) pendingReason[opts.id] = "done";
   drivers[opts.id].moveNext();
@@ -407,6 +416,10 @@ Shiny.addCustomMessageHandler("cicerone-next", function (opts) {
 
 Shiny.addCustomMessageHandler("cicerone-previous", function (opts) {
   if (!drivers[opts.id]) return;
+  // see the matching comment in cicerone-next above
+  const state = getStateData(drivers[opts.id]);
+  emitInput(opts.id, "previous", state);
+  emitEvent(opts.id, "previous", state);
   drivers[opts.id].movePrevious();
 });
 
