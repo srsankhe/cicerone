@@ -216,6 +216,29 @@ test_that("a config-level on_close_click that destroys itself does not double-de
   expect_equal(nrow(errors), 0)
 })
 
+test_that("a step-level on_highlighted override still fires _state/_started and event:highlighted", {
+  skip_e2e()
+  app <- e2e_app()
+  on.exit(app$stop(), add = TRUE)
+
+  app$click(input = "btn_start_step_highlighted")
+  app$wait_for_value(input = "e2e_step_highlighted_cicerone_started")
+  app$wait_for_idle()
+
+  started <- input_value(app, "e2e_step_highlighted_cicerone_started")
+  expect_equal(started$index, 0)
+
+  state <- input_value(app, "e2e_step_highlighted_cicerone_state")
+  expect_false(is.null(state))
+  expect_equal(state$highlighted, "el1")
+
+  # "highlighted" is emitted after "started" for the very same highlight
+  # (see highlightBookkeeping() in steps.js), so the latest value of the
+  # unified event stream is "highlighted" by the time _started has fired
+  event <- input_value(app, "e2e_step_highlighted_cicerone_event")
+  expect_equal(event$type, "highlighted")
+})
+
 test_that("a hint's on_button_click still auto-dismisses the hint", {
   skip_e2e()
   app <- e2e_app()

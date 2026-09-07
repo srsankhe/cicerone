@@ -60,6 +60,37 @@ export const POPOVER_HOOKS = ["onPopoverRender", "onCloseClick", "onDoneClick"];
 // by a 1-line attach in cicerone.js, mirroring `advanceListeners` (WP6).
 export let allSteps = {};
 
+// Config-level highlight bookkeeping, factored out of prepareConfig()'s
+// own `onHighlighted` wrap below so prepareSteps()'s step-level re-wrap
+// (immediately below) can run the exact same bookkeeping. driver.js
+// calls a step's OWN `onHighlighted` INSTEAD of the config-level one
+// whenever the step defines one (the same last-one-defined-wins contract
+// `onNextClick`/`onCloseClick`/`onDoneClick`/`onPopoverRender` already
+// have here) -- before this factoring, a step-level `on_highlighted`
+// only re-armed `advance_on`/`advance_when` and skipped `_state`,
+// `_started`/the active flag, `event:"started"`/`"highlighted"`, and the
+// WP5 persisted-record writes entirely for that one step.
+const highlightBookkeeping = (id, element, step, hookOpts) => {
+  const state = getStateData(drivers[id]);
+  emitInput(id, "state", state, false);
+  if (!active[id]) {
+    active[id] = true;
+    emitInput(id, "started", {
+      index: state.index,
+      total_steps: state.total_steps,
+    });
+    emitEvent(id, "started", state);
+    // --- WP5 begin: persisted record write on start ---
+    recordOnStarted(id, state.index);
+    // --- WP5 end ---
+  }
+  emitEvent(id, "highlighted", state);
+  // --- WP5 begin: persisted record write on each highlight ---
+  recordOnHighlighted(id, state.index);
+  // --- WP5 end ---
+  armAdvance(id, step);
+};
+
 // Per-step wrapping: tab activation, hook eval, wrapNext/wrapPrevious/
 // wrapClose, `_cicOrigDone`/`_cicOrigNext` stashing, WP6 arm/disarm
 // re-wraps, and WP9's per-step popover-render wrap. Mutates and returns
@@ -94,15 +125,18 @@ export const prepareSteps = (id, steps, config) => {
 
     // a step-level onHighlighted/onDeselected (step(on_highlighted = )/
     // step(on_deselected = )) overrides the config-level hooks wrapped by
-    // prepareConfig, so a step that defines either must re-run
-    // arm/disarm itself here, the same way `userStart` above re-runs
+    // prepareConfig, so a step that defines either must re-run the same
+    // bookkeeping itself here, the same way `userStart` above re-runs
     // cleanupStaleHighlights for a step-level override of
-    // onHighlightStarted.
+    // onHighlightStarted. onHighlighted's full bookkeeping (`_state`,
+    // `_started`, the `started`/`highlighted` events, the WP5 persisted-
+    // record writes, and armAdvance) lives in highlightBookkeeping()
+    // above, shared with prepareConfig()'s config-level wrap.
     if (step.onHighlighted) {
       const userStepHighlighted = step.onHighlighted;
       step.onHighlighted = (element, s, hookOpts) => {
         userStepHighlighted(element, s, hookOpts);
-        armAdvance(id, s);
+        highlightBookkeeping(id, element, s, hookOpts);
       };
     }
     if (step.onDeselected) {
@@ -218,24 +252,7 @@ export const prepareConfig = (id, config) => {
     const userHighlighted = config.onHighlighted;
     config.onHighlighted = tag((element, step, hookOpts) => {
       if (userHighlighted) userHighlighted(element, step, hookOpts);
-      const state = getStateData(drivers[id]);
-      emitInput(id, "state", state, false);
-      if (!active[id]) {
-        active[id] = true;
-        emitInput(id, "started", {
-          index: state.index,
-          total_steps: state.total_steps,
-        });
-        emitEvent(id, "started", state);
-        // --- WP5 begin: persisted record write on start ---
-        recordOnStarted(id, state.index);
-        // --- WP5 end ---
-      }
-      emitEvent(id, "highlighted", state);
-      // --- WP5 begin: persisted record write on each highlight ---
-      recordOnHighlighted(id, state.index);
-      // --- WP5 end ---
-      armAdvance(id, step);
+      highlightBookkeeping(id, element, step, hookOpts);
     });
   }
 
